@@ -29,7 +29,13 @@ sanas con las medianas de los 8 grupos (AUC de grupos y prueba exacta de permuta
 las 70 asignaciones posibles). Es descriptivo: con 4 vs 4 el p mínimo posible es 2/70 = 0,029
 y con ~35 características ninguna sobrevive a corrección por comparaciones múltiples.
 
+Varias fuentes: la fuente sale del prefijo del archivo (train_/test_ = Kaggle; dv_ = otra). La
+comparación se hace dentro de cada fuente y combinada (permutando etiquetas dentro de cada
+fuente), y se marca si la diferencia va en el mismo sentido en todas. Así el sesgo de fuente
+(tamaño, encuadre) no se mezcla con la patología.
+
 Salidas (reports/): caracteristicas_imagenes.csv, caracteristicas_grupos.csv,
+caracteristicas_comparacion.csv,
 caracteristicas_resumen.txt, caracteristicas_montaje.png (una ecografía representativa por
 grupo, con folículos en rojo y estroma en verde) y, con --imagenes N, figuras_caracteristicas/
 con una figura por imagen: contornos numerados | estroma y folículos | mediciones.
@@ -44,6 +50,7 @@ from pathlib import Path
 import argparse
 import csv
 import itertools
+import math
 import random
 import time
 
@@ -292,7 +299,8 @@ def resumir_grupos(filas, claves):
         por_grupo.setdefault(f["grupo"], []).append(f)
     res = {}
     for g, fs in sorted(por_grupo.items(), key=lambda kv: int(kv[0])):
-        fila = dict(grupo=g, clase=fs[0]["clase"], label=fs[0]["label"], n_imagenes=len(fs))
+        fila = dict(grupo=g, clase=fs[0]["clase"], label=fs[0]["label"], fuente=fs[0]["fuente"],
+                    n_imagenes=len(fs))
         for k in claves:
             v = np.array([x[k] for x in fs], float)
             v = v[np.isfinite(v)]
@@ -305,29 +313,84 @@ def resumir_grupos(filas, claves):
     return res
 
 
-def auc_grupos(v, et):
-    pos, neg = v[et == 1], v[et == 0]
-    return float(np.mean([(p > n) + 0.5 * (p == n) for p in pos for n in neg]))
+def fuente_de(path):
+    """De dónde salió la imagen, según el prefijo del archivo: train_/test_ = Kaggle original;
+    cualquier otro prefijo (dv_, ...) = otra fuente. Sin prefijo: "otra"."""
+    pref = Path(path).name.partition("_")[0].lower()
+    if pref in ("train", "test"):
+        return "kaggle"
+    return pref if "_" in Path(path).name else "otra"
 
 
-def permutacion_exacta(v, et):
-    """p bilateral exacto: diferencia de medias entre grupos PCOS y sanos, sobre todas las
-    asignaciones posibles de las etiquetas (70 con 4 vs 4)."""
-    obs = abs(v[et == 1].mean() - v[et == 0].mean())
-    n, k = len(v), int(et.sum())
-    cuenta = total = 0
-    for idx in itertools.combinations(range(n), k):
-        m = np.zeros(n, bool)
-        m[list(idx)] = True
-        cuenta += abs(v[m].mean() - v[~m].mean()) >= obs - 1e-12
-        total += 1
-    return cuenta / total
+def _estratos(v, et, fu):
+    """Fuentes con las dos clases: [(índices PCOS, índices sanas)]."""
+    out = []
+    for s_ in sorted(set(fu)):
+        m = fu == s_
+        if (et[m] == 1).any() and (et[m] == 0).any():
+            out.append((np.where(m & (et == 1))[0], np.where(m & (et == 0))[0]))
+    return out
 
 
-def comparar(grupos, claves):
-    gs = list(grupos.values())
+def _estadistico(v, estratos, pos_por_estrato):
+    """Diferencia de medias PCOS - sana, promediada entre fuentes con peso n_pos*n_neg/n."""
+    num = den = 0.0
+    for (ip, ineg), pos in zip(estratos, pos_por_estrato):
+        idx = np.concatenate([ip, ineg])
+        resto = np.setdiff1d(idx, pos)
+        w = len(pos) * len(resto) / len(idx)
+        num += w * (v[pos].mean() - v[resto].mean())
+        den += w
+    return num / den
+
+
+def auc_grupos(v, et, fu=None):
+    """AUC de las medianas de grupo; con varias fuentes, promedio de los AUC de cada fuente
+    (no se comparan PCOS de una fuente con sanas de otra)."""
+    fu = np.zeros(len(v), int) if fu is None else fu
+    aucs, pesos = [], []
+    for ip, ineg in _estratos(v, et, fu):
+        aucs.append(np.mean([(p > n) + 0.5 * (p == n) for p in v[ip] for n in v[ineg]]))
+        pesos.append(len(ip) * len(ineg))
+    return float(np.average(aucs, weights=pesos))
+
+
+def permutacion(v, et, fu=None, max_exacta=200000, n_mc=20000, seed=0):
+    """p bilateral de la diferencia PCOS - sana PERMUTANDO LAS ETIQUETAS DENTRO DE CADA FUENTE.
+    Exacto si hay pocas asignaciones (4 vs 4 = 70); si no, Monte Carlo (n_mc permutaciones)."""
+    fu = np.zeros(len(v), int) if fu is None else fu
+    est = _estratos(v, et, fu)
+    obs = abs(_estadistico(v, est, [e[0] for e in est]))
+    total = 1
+    for ip, ineg in est:
+        total *= math.comb(len(ip) + len(ineg), len(ip))
+    if total <= max_exacta:
+        opciones = [list(itertools.combinations(np.concatenate([ip, ineg]), len(ip))) for ip, ineg in est]
+        cuenta = sum(abs(_estadistico(v, est, [np.array(c) for c in comb])) >= obs - 1e-12
+                     for comb in itertools.product(*opciones))
+        return cuenta / total
+    rng = np.random.default_rng(seed)
+    num = np.zeros(n_mc)
+    den = 0.0
+    for ip, ineg in est:   # vectorizado: n_mc reparticiones de las etiquetas dentro de la fuente
+        idx = np.concatenate([ip, ineg])
+        x, k, n = v[idx], len(ip), len(idx)
+        elegidos = rng.random((n_mc, n)).argsort(1)[:, :k]
+        suma = x[elegidos].sum(1)
+        w = k * (n - k) / n
+        num += w * (suma / k - (x.sum() - suma) / (n - k))
+        den += w
+    cuenta = 1 + int((np.abs(num / den) >= obs - 1e-12).sum())
+    return cuenta / (n_mc + 1)
+
+
+def comparar(grupos, claves, fuentes=None, seed=0):
+    """PCOS vs sanas con las medianas de grupo. `fuentes`: usar solo esas (None = todas, con
+    la comparación hecha DENTRO de cada fuente y combinada)."""
+    gs = [g for g in grupos.values() if fuentes is None or g["fuente"] in fuentes]
     et = np.array([int(g["label"]) for g in gs])
-    if et.sum() == 0 or et.sum() == len(et):
+    fu = np.array([g["fuente"] for g in gs])
+    if not _estratos(None, et, fu):
         return []
     filas = []
     for k in claves:
@@ -336,11 +399,14 @@ def comparar(grupos, claves):
             continue
         iqr = np.array([g[f"{k}_iqr"] for g in gs], float)
         rango = v.max() - v.min()
+        # signo de la diferencia en cada fuente: ¿coincide entre fuentes?
+        signos = {np.sign(np.median(v[ip]) - np.median(v[ineg])) for ip, ineg in _estratos(v, et, fu)}
         filas.append(dict(
             caracteristica=k, med_pcos=float(np.median(v[et == 1])), med_sana=float(np.median(v[et == 0])),
-            auc_grupos=auc_grupos(v, et), p_exacto=permutacion_exacta(v, et),
-            inestabilidad=float(np.mean(iqr) / rango) if rango > 0 else NAN))
-    return sorted(filas, key=lambda f: (f["p_exacto"], -abs(f["auc_grupos"] - 0.5)))
+            auc_grupos=auc_grupos(v, et, fu), p_perm=permutacion(v, et, fu, seed=seed),
+            inestabilidad=float(np.mean(iqr) / rango) if rango > 0 and iqr.any() else NAN,
+            mismo_sentido=("si" if len(signos) == 1 and 0 not in signos else "no")))
+    return sorted(filas, key=lambda f: (f["p_perm"], -abs(f["auc_grupos"] - 0.5)))
 
 
 # ---------------------------------------------------------------- entrada / salida
@@ -390,7 +456,8 @@ def main():
         d = segment_detalle(ruta, filtro=args.filtro, contraste=args.contraste, metodo=args.metodo)
         f = caracteristicas(d, args.margen_estroma)
         claves = claves or list(f)
-        filas.append(dict(path=r["path"], clase=r["clase"], label=r["label"], grupo=r["grupo"], **f))
+        filas.append(dict(path=r["path"], clase=r["clase"], label=r["label"], grupo=r["grupo"],
+                          fuente=fuente_de(r["path"]), **f))
         if guardadas[r["grupo"]] < args.imagenes:
             guardadas[r["grupo"]] += 1
             carpeta_fig.mkdir(parents=True, exist_ok=True)
@@ -429,24 +496,47 @@ def main():
         cv2.imwrite(str(REPORTES / "caracteristicas_montaje.png"),
                     cv2.cvtColor(montaje_grupos(items), cv2.COLOR_RGB2BGR))
 
-    comp = comparar(grupos, claves)
+    fuentes = sorted({g["fuente"] for g in grupos.values()})
     L = [f"Imágenes procesadas: {len(filas)} de {len(muestra)} ({saltadas} sin archivo) | "
          f"grupos: {len(grupos)} | segmentación: {args.metodo}+{args.filtro}+{args.contraste}",
-         "Grupos (= ecografías originales):"]
-    for g in grupos.values():
-        L.append(f"  grupo {g['grupo']}: {g['clase']:12s} n={g['n_imagenes']:4d}  "
-                 f"folículos (mediana) = {g['n_foliculos_med']:.0f}")
-    L += ["", "PCOS vs sanas con las medianas de los grupos (n efectivo = 8: 4 vs 4)",
-          f"{'característica':28s}{'PCOS':>10s}{'sana':>10s}{'AUC':>7s}{'p exacto':>10s}{'inestab.':>10s}"]
-    for c in comp:
-        L.append(f"{c['caracteristica']:28s}{c['med_pcos']:10.3f}{c['med_sana']:10.3f}"
-                 f"{c['auc_grupos']:7.2f}{c['p_exacto']:10.3f}{c['inestabilidad']:10.2f}")
-    L += ["", "AUC: sobre medianas de grupo (1 = todas las PCOS por encima de todas las sanas, 0,5 = nada).",
-          "p exacto: permutación de las 70 asignaciones; mínimo posible 0,029; SIN corregir por",
-          f"  comparaciones múltiples ({len(comp)} características): tomarlo como orientativo.",
-          "inestab.: rango intercuartílico entre variantes / rango entre grupos. < 1 = la diferencia",
-          "  entre ecografías supera lo que cambia una misma ecografía al rotarla, hacerle zoom o recortarla.",
-          "Con 8 ecografías no se estima una capacidad diagnóstica: se describe qué mide cada característica."]
+         "Grupos (= ecografías originales; las de Kaggle son aumentaciones de 8, las demás fuentes",
+         "  suelen traer una imagen por ecografía):"]
+    for fte in fuentes:
+        gs = [g for g in grupos.values() if g["fuente"] == fte]
+        npos = sum(int(g["label"]) for g in gs)
+        L.append(f"  fuente {fte}: {len(gs)} grupos ({npos} PCOS, {len(gs) - npos} sanas), "
+                 f"{sum(g['n_imagenes'] for g in gs)} imágenes")
+    tablas = [(fte, comparar(grupos, claves, [fte], args.seed)) for fte in fuentes]
+    if len(fuentes) > 1:
+        tablas.append(("TODAS (permutando etiquetas dentro de cada fuente)", comparar(grupos, claves, None, args.seed)))
+    comp_csv = []
+    for nombre, comp in tablas:
+        gs = [g for g in grupos.values() if nombre in fuentes and g["fuente"] == nombre] or list(grupos.values())
+        npos = sum(int(g["label"]) for g in gs)
+        L += ["", f"PCOS vs sanas, fuente {nombre}: {npos} vs {len(gs) - npos} grupos",
+              f"{'característica':28s}{'PCOS':>10s}{'sana':>10s}{'AUC':>7s}{'p perm.':>9s}{'inestab.':>10s}"
+              + (f"{'mismo sentido':>15s}" if nombre not in fuentes else "")]
+        for c in comp:
+            L.append(f"{c['caracteristica']:28s}{c['med_pcos']:10.3f}{c['med_sana']:10.3f}"
+                     f"{c['auc_grupos']:7.2f}{c['p_perm']:9.4f}{_f(c['inestabilidad']):>10s}"
+                     + (f"{c['mismo_sentido']:>15s}" if nombre not in fuentes else ""))
+            comp_csv.append(dict(fuente=nombre.split(" ")[0], **c))
+    with open(REPORTES / "caracteristicas_comparacion.csv", "w", newline="", encoding="utf-8") as f:
+        if comp_csv:
+            w = csv.DictWriter(f, fieldnames=list(comp_csv[0]))
+            w.writeheader()
+            w.writerows(comp_csv)
+    L += ["", "AUC: sobre medianas de grupo, calculado dentro de cada fuente (1 = todas las PCOS por encima",
+          "  de todas las sanas, 0,5 = nada). Con varias fuentes es el promedio de los AUC de cada una.",
+          "p perm.: permutación de etiquetas dentro de cada fuente (exacta si hay pocas asignaciones;",
+          "  con 4 vs 4 el mínimo es 0,029; si no, Monte Carlo con 20.000 reparticiones, mínimo 0,00005).",
+          "  SIN corregir por comparaciones múltiples: con ~35 características, varias dan p < 0,05 por azar.",
+          "mismo sentido: la diferencia PCOS - sana tiene el mismo signo en todas las fuentes. Una",
+          "  característica que cambia de signo entre fuentes depende de la fuente, no de la patología.",
+          "inestab.: ('-' si hay una imagen por grupo) rango intercuartílico entre variantes / rango entre grupos (< 1 = la diferencia entre",
+          "  ecografías supera lo que cambia una misma ecografía al rotarla, hacerle zoom o recortarla).",
+          "En Kaggle el efectivo es 4 vs 4 y clase y encuadre van juntos; las otras fuentes son la prueba",
+          "  más limpia. Se describe qué mide cada característica; no se estima capacidad diagnóstica."]
     texto = "\n".join(L)
     print(texto)
     (REPORTES / "caracteristicas_resumen.txt").write_text(texto + "\n", encoding="utf-8")

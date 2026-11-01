@@ -1,22 +1,22 @@
-Imágenes auditadas: 1699
+Imágenes auditadas: 1753
 
-[infected]  n = 711  (train=0, test=711)
-  tamaños distintos: 7 | más frecuente: 300x300 (25 %)
-  ancho mediano: 300 | alto mediano: 300 | bytes medianos: 13849
-  modos: RGB=711
-  brillo medio: 73.1 | desvío medio: 61.3
-  con >1 % de píxeles saturados: 29 % | con color (>0,1 % de píxeles): 0 %
+[infected]  n = 725  (train=0, test=711)
+  tamaños distintos: 8 | más frecuente: 300x300 (24 %)
+  ancho mediano: 300 | alto mediano: 300 | bytes medianos: 13922
+  modos: RGB=725
+  brillo medio: 73.1 | desvío medio: 61.0
+  con >1 % de píxeles saturados: 28 % | con color (>0,1 % de píxeles): 0 %
 
-[notinfected]  n = 988  (train=1, test=987)
-  tamaños distintos: 4 | más frecuente: 984x848 (32 %)
-  ancho mediano: 850 | alto mediano: 578 | bytes medianos: 54670
-  modos: RGB=986, P=1, L=1
-  brillo medio: 53.4 | desvío medio: 44.5
-  con >1 % de píxeles saturados: 0 % | con color (>0,1 % de píxeles): 6 %
+[notinfected]  n = 1028  (train=1, test=987)
+  tamaños distintos: 5 | más frecuente: 984x848 (31 %)
+  ancho mediano: 850 | alto mediano: 578 | bytes medianos: 53980
+  modos: RGB=1026, P=1, L=1
+  brillo medio: 54.3 | desvío medio: 44.4
+  con >1 % de píxeles saturados: 0 % | con color (>0,1 % de píxeles): 5 %
 
-Chequeo de atajos: AUC solo con metadatos (tamaño, bytes, brillo, saturación, color) = 1.000 -> ALERTA: la clase se predice sin mirar el ovario; hay sesgo de adquisición
+Chequeo de atajos: AUC solo con metadatos (tamaño, bytes, brillo, saturación, color) = 0.999 -> ALERTA: la clase se predice sin mirar el ovario; hay sesgo de adquisición
   (CV sin agrupar: los near-duplicados lo inflan un poco. ~0,5 es lo esperable.)
-  AUC de cada característica sola (0,5 = no separa): aspecto=1.00, ancho=0.95, desvio=0.91, brillo=0.85, bytes=0.83, alto=0.82, frac_sat=0.57, frac_color=0.50
+  AUC de cada característica sola (0,5 = no separa): aspecto=0.98, ancho=0.94, desvio=0.91, bytes=0.84, brillo=0.83, alto=0.79, frac_sat=0.57, frac_color=0.51
 
 Revisión visual pendiente (a mano):
   - /Users/somi/Documents/PSIB/PSIB_Grupo15_PCOS/reports/muestra_azar_<clase>.jpg y muestra_marcas_<clase>.jpg
