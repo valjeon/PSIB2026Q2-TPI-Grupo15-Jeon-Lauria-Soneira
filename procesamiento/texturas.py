@@ -425,8 +425,8 @@ def main():
     ap.add_argument("--splits", default="splits2.csv", help="CSV con path, label, clase, grupo")
     ap.add_argument("--n-por-grupo", type=int, default=40, help="0 = todas las imágenes")
     ap.add_argument("--metodo", default="multiotsu")
-    ap.add_argument("--filtro", default="mediana5")
-    ap.add_argument("--contraste", default="estirar")
+    ap.add_argument("--filtro", default="wiener3")
+    ap.add_argument("--contraste", default="ninguno")
     ap.add_argument("--margen-estroma", type=int, default=3)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--imagenes", type=int, default=0,

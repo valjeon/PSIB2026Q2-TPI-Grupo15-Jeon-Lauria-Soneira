@@ -17,7 +17,7 @@ Pipeline de `segment(entrada)`:
 
 Como módulo:
     from segmentacion import segment, segment_detalle, resumen_imagen
-    mask = segment("data/clean/infected/x.jpg", filtro="mediana5", contraste="estirar")
+    mask = segment("data/clean/infected/x.jpg", filtro="wiener3", contraste="ninguno")
     d = segment_detalle("data/clean/infected/x.jpg")   # base, pre, roi, labels, mask
     fila = resumen_imagen(d)                             # n_foliculos, interfaz, etc.
 
@@ -128,7 +128,7 @@ def _estirar_roi(img, roi, p=(1, 99)):
     return (np.clip((img.astype(np.float32) - lo) / (hi - lo), 0, 1) * 255).astype(np.uint8)
 
 
-def preprocesar_roi(g, roi, filtro="mediana5", contraste="estirar"):
+def preprocesar_roi(g, roi, filtro="wiener3", contraste="ninguno"):
     f = filtrar(g, filtro)
     if contraste == "estirar":
         return _estirar_roi(f, roi)
@@ -195,7 +195,7 @@ def _reumbralar(lab, pre, area_max, elong_min, area_min, k, niveles=2):
     return out
 
 
-def segment_detalle(entrada, filtro="mediana5", contraste="estirar", tam=256,
+def segment_detalle(entrada, filtro="wiener3", contraste="ninguno", tam=256,
                     conservar_aspecto=True, metodo="multiotsu",
                     area_min=80, area_max_frac=0.05, circ_min=0.50, solidez_min=0.85,
                     reumbral=True,
@@ -773,13 +773,13 @@ Salida: reports/seg_peores.png (rojo = folículo, amarillo = descartado, celeste
 y la lista de archivos en la terminal, para abrirlos y mirarlos en tamaño original.
 
 Uso:
-    python segmentacion.py ver-casos                         # combinación mediana+estirar
+    python segmentacion.py ver-casos                         # combinación wiener3+ninguno
     python segmentacion.py ver-casos --filtro lee --contraste clahe --n 8
     python segmentacion.py ver-casos --contraste-min 20      # mismos parámetros que usaste al comparar
 """
     ap = argparse.ArgumentParser()
-    ap.add_argument("--filtro", default="mediana5")
-    ap.add_argument("--contraste", default="estirar")
+    ap.add_argument("--filtro", default="wiener3")
+    ap.add_argument("--contraste", default="ninguno")
     ap.add_argument("--metodo", default="multiotsu")
     ap.add_argument("--n", type=int, default=6, help="imágenes por fila")
     ap.add_argument("--area-min", type=int, default=None)
@@ -1032,7 +1032,7 @@ Salidas (con --sufijo, por ejemplo _dv, los nombres llevan ese sufijo y no se me
 Uso:
     python segmentacion.py anotar-mascaras --n-por-clase 15                       # Kaggle (como antes)
     python segmentacion.py anotar-mascaras --splits splits2.csv --fuente dv --sufijo _dv --n-por-clase 10
-    python segmentacion.py comparar --mascaras mascaras_dv.csv --conjunto todos --combos multiotsu+mediana5+estirar
+    python segmentacion.py comparar --mascaras mascaras_dv.csv --conjunto todos --combos multiotsu+wiener3+ninguno
 """
     global CARPETA, INDICE
     ap = argparse.ArgumentParser()

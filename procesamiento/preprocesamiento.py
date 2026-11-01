@@ -12,7 +12,7 @@ de 300x300 no son comparables hasta que tienen la misma resolución.
 
 Como módulo:
     from preprocesamiento import preprocess
-    img = preprocess("data/clean/infected/x.jpg", filtro="mediana5", contraste="ninguno")
+    img = preprocess("data/clean/infected/x.jpg", filtro="wiener3", contraste="ninguno")
 
 Como script (selección de filtros):
     python procesamiento/preprocesamiento.py comparar         # figuras + SSI/beta por filtro
@@ -180,7 +180,7 @@ FILTROS["homomorfico"] = homomorfico
 FILTROS["homomorfico_wiener3"] = lambda im: homomorfico_wiener(im, 3)
 
 
-def filtrar(img, metodo="mediana5"):
+def filtrar(img, metodo="wiener3"):
     for paso in metodo.split("+"):
         img = FILTROS[paso](img)
     return img
@@ -211,7 +211,7 @@ def base(entrada, tam=256, marcas=True, recortar=True, texto=True):
     return a_tamano(gris, tam)
 
 
-def preprocess(entrada, filtro="mediana5", contraste="ninguno", tam=256,
+def preprocess(entrada, filtro="wiener3", contraste="ninguno", tam=256,
                marcas=True, recortar=True, texto=True):
     """uint8 (tam, tam). Es la función que usa el resto del proyecto."""
     g = base(entrada, tam, marcas, recortar, texto)
@@ -273,7 +273,7 @@ Métricas (sin referencia limpia, como es habitual en ecografía):
     ap.add_argument("--n-fig", type=int, default=8, help="imágenes en las figuras (mitad por clase)")
     ap.add_argument("--n-metricas", type=int, default=20, help="imágenes por clase para las métricas")
     ap.add_argument("--tam", type=int, default=256)
-    ap.add_argument("--filtro-ref", default="mediana5", help="filtro previo a la figura de contraste")
+    ap.add_argument("--filtro-ref", default="wiener3", help="filtro previo a la figura de contraste")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args(argv)
 
@@ -747,7 +747,7 @@ Uso (desde cualquier carpeta):
     python preprocesamiento.py procesar --filtro mediana --contraste clahe --tam 256
 """
     ap = argparse.ArgumentParser()
-    ap.add_argument("--filtro", default="mediana5")
+    ap.add_argument("--filtro", default="wiener3")
     ap.add_argument("--contraste", default="ninguno")
     ap.add_argument("--tam", type=int, default=256)
     ap.add_argument("--sin-marcas", action="store_true")
