@@ -19,5 +19,5 @@ Chequeo de atajos: AUC solo con metadatos (tamaño, bytes, brillo, saturación, 
   AUC de cada característica sola (0,5 = no separa): aspecto=0.98, ancho=0.94, desvio=0.91, bytes=0.84, brillo=0.83, alto=0.79, frac_sat=0.57, frac_color=0.51
 
 Revisión visual pendiente (a mano):
-  - /Users/somi/Documents/PSIB/PSIB_Grupo15_PCOS/reports/muestra_azar_<clase>.jpg y muestra_marcas_<clase>.jpg
+  - /Users/molauria/PSIB_Grupo15_PCOS/reports/muestra_azar_<clase>.jpg y muestra_marcas_<clase>.jpg
   - anotar en el informe: ¿hay texto, calibres, logos? ¿en qué proporción por clase?

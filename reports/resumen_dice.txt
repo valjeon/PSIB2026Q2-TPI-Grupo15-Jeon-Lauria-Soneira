@@ -1,18 +1,19 @@
-Imágenes: 16 (conjunto ajuste; 6 sin folículos en la máscara manual) | métodos: otsu multiotsu chanvese adaptativo | parámetros: por defecto
+Imágenes: 20 (conjunto todos; 0 sin folículos en la máscara manual) | métodos: otsu multiotsu chanvese adaptativo | parámetros: por defecto
 
 combinación                        Dice    ±DE mediana      P      R     F1    |Δn|  sesgo n  s/img
-multiotsu+mediana5+estirar        0.313  0.330   0.236  0.344  0.468  0.396    2.44    +1.06   0.03
+multiotsu+mediana5+estirar        0.686  0.217   0.754  0.657  0.775  0.711    1.30    +0.80   0.30
 
 Dice: por imagen, unión de folículos vs. máscara manual. P/R/F1: por folículo, sumando
 todas las imágenes; un folículo manual está 'encontrado' si algún segmentado lo cubre con
 IoU >= 0.5 (y al revés para la precisión). |Δn|: error absoluto medio del conteo;
 sesgo n: automático - manual (+ = de más).
 
-FINALISTAS (selección automática; 0 de 1)
-  Regla 1: Dice mayor que el del predictor vacío (0.375 = 6 de 16 zonas sin folículos).
+FINALISTAS (selección automática; 1 de 1)
+  Regla 1: Dice mayor que el del predictor vacío (0.000 = 0 de 20 zonas sin folículos).
   Regla 2: ninguna otra la supera en Dice Y en F1 por folículo, las dos por al menos 0.02.
-  Ninguna supera al predictor vacío: revisar los parámetros de la segmentación.
-  Descartadas por regla 1: 1 | por regla 2: 0
+  multiotsu+mediana5+estirar
+  Descartadas por regla 1: 0 | por regla 2: 0
+  Para el paso siguiente: --combos multiotsu+mediana5+estirar
 
 No elegir solo por Dice: mirar reports/seg_dice_overlays.png (verde = manual, rojo =
 automática). Con pocas imágenes las diferencias chicas entre combinaciones son ruido.
