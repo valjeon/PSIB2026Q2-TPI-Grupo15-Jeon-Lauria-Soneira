@@ -1,46 +1,46 @@
-Muestra de métricas: hasta 3 imágenes por clase | tamaño 256
+Muestra de métricas: hasta 20 imágenes por clase | tamaño 256
 
 FILTROS DE SPECKLE (SSI más bajo = suaviza más; beta más alto = conserva bordes)
 filtro    clase              SSI    beta   ms/img
-frost3    infected         0.945   0.553      5.0
-frost3    notinfected      0.961   0.692      5.0
-frost5    infected         0.917   0.185     10.2
-frost5    notinfected      0.930   0.350     10.2
-frost7    infected         0.901   0.232     15.6
-frost7    notinfected      0.909   0.324     15.6
-gauss1.0  infected         0.923   0.673      0.1
-gauss1.0  notinfected      0.938   0.737      0.1
-gauss1.5  infected         0.895   0.382      0.1
-gauss1.5  notinfected      0.907   0.494      0.1
-gauss2.0  infected         0.871   0.230      0.1
-gauss2.0  notinfected      0.883   0.335      0.1
-homomorficoinfected         0.944   0.374      0.4
-homomorficonotinfected      0.948   0.469      0.4
-homomorfico_wiener3infected         0.964   0.556      2.0
-homomorfico_wiener3notinfected      0.972   0.706      2.0
-mediana3  infected         0.951   0.473      0.0
-mediana3  notinfected      0.970   0.666      0.0
-mediana5  infected         0.921   0.095      0.1
-mediana5  notinfected      0.935   0.334      0.1
-mediana7  infected         0.906   0.058      0.1
-mediana7  notinfected      0.912   0.219      0.1
-promedio3 infected         0.933   0.466      0.0
-promedio3 notinfected      0.949   0.642      0.0
-promedio5 infected         0.896  -0.056      0.0
-promedio5 notinfected      0.908   0.125      0.0
-promedio7 infected         0.869  -0.028      0.1
-promedio7 notinfected      0.879   0.004      0.1
-wiener3   infected         0.963   0.803      1.9
-wiener3   notinfected      0.972   0.797      1.9
-wiener5   infected         0.936   0.725      1.7
-wiener5   notinfected      0.948   0.652      1.7
+frost3    infected         0.985   0.774      2.0
+frost3    notinfected      0.966   0.581      2.0
+frost5    infected         0.971   0.466      5.1
+frost5    notinfected      0.943   0.289      5.1
+frost7    infected         0.960   0.430     10.0
+frost7    notinfected      0.927   0.281     10.0
+gauss1.0  infected         0.970   0.780      0.1
+gauss1.0  notinfected      0.947   0.685      0.1
+gauss1.5  infected         0.952   0.560      0.1
+gauss1.5  notinfected      0.924   0.431      0.1
+gauss2.0  infected         0.934   0.403      0.1
+gauss2.0  notinfected      0.905   0.285      0.1
+homomorficoinfected         0.986   0.515      0.3
+homomorficonotinfected      0.960   0.416      0.3
+homomorfico_wiener3infected         0.996   0.781      1.5
+homomorfico_wiener3notinfected      0.979   0.624      1.5
+mediana3  infected         0.988   0.728      0.0
+mediana3  notinfected      0.972   0.561      0.0
+mediana5  infected         0.976   0.488      0.1
+mediana5  notinfected      0.947   0.253      0.1
+mediana7  infected         0.968   0.391      0.1
+mediana7  notinfected      0.931   0.170      0.1
+promedio3 infected         0.976   0.690      0.0
+promedio3 notinfected      0.956   0.502      0.0
+promedio5 infected         0.953   0.230      0.0
+promedio5 notinfected      0.925   0.072      0.0
+promedio7 infected         0.932   0.061      0.0
+promedio7 notinfected      0.903   0.008      0.0
+wiener3   infected         0.993   0.854      1.3
+wiener3   notinfected      0.979   0.761      1.3
+wiener5   infected         0.980   0.731      1.3
+wiener5   notinfected      0.960   0.632      1.3
 
-CONTRASTE (sobre filtro 'mediana5')
+CONTRASTE (sobre filtro 'wiener3')
 metodo    clase           entropia   desvio
-global    infected           6.961    76.30
-global    notinfected        6.516    78.64
-ninguno   infected           7.081    41.42
-ninguno   notinfected        6.644    37.66
+global    infected           6.921    76.61
+global    notinfected        6.651    75.06
+ninguno   infected           7.098    59.29
+ninguno   notinfected        6.786    40.68
 
 Figuras: reports/preproc_marcas.png, preproc_filtros.png, preproc_contraste.png
 Elegir mirando las figuras: ¿se ven los folículos nítidos y sin halos? Anotar la elección y su justificación en el informe.

@@ -1,125 +1,83 @@
-Imágenes procesadas: 374 de 374 (0 sin archivo) | grupos: 59 | segmentación: multiotsu+mediana5+estirar
+Imágenes procesadas: 372 de 372 (0 sin archivo) | grupos: 58 | segmentación: multiotsu+wiener3+ninguno
 Grupos (= ecografías originales; las de Kaggle son aumentaciones de 8, las demás fuentes
   suelen traer una imagen por ecografía):
-  fuente dv: 51 grupos (14 PCOS, 37 sanas), 54 imágenes
+  fuente dv: 50 grupos (13 PCOS, 37 sanas), 52 imágenes
   fuente kaggle: 8 grupos (4 PCOS, 4 sanas), 320 imágenes
 
-PCOS vs sanas, fuente dv: 14 vs 37 grupos
+PCOS vs sanas, fuente dv: 13 vs 37 grupos
 característica                    PCOS      sana    AUC  p perm.  inestab.
-densidad_x1e4px                  2.173     1.228   0.89   0.0000      0.00
-n_foliculos                      8.000     5.000   0.89   0.0000      0.00
-dominancia_max                   0.232     0.360   0.16   0.0012      0.00
-area_roi_px                  40632.500 40658.000   0.43   0.0102      0.00
-ratio_area_fol_estroma           0.079     0.056   0.73   0.0131      0.00
-frac_area_foliculos              0.070     0.051   0.73   0.0141      0.00
-area_total_px                 2838.500  1989.000   0.71   0.0240      0.00
-dist_vecino_rel                  0.170     0.196   0.28   0.0242      0.00
-brillo_foliculos                 0.076     0.094   0.33   0.0611      0.00
-ratio_brillo_fol_estroma         0.245     0.290   0.32   0.0770      0.00
-area_min_px                    112.000   142.000   0.36   0.0861      0.00
-glcm_homogeneity                 0.784     0.791   0.36   0.0893      0.00
-frac_area_rechazos               0.026     0.041   0.35   0.0981      0.00
-area_mediana_px                306.250   359.500   0.35   0.0994      0.00
-glcm_dissimilarity               0.479     0.469   0.63   0.0999      0.00
-contraste_michelson              0.607     0.550   0.68   0.1041      0.00
-area_media_px                  328.594   422.714   0.41   0.1295      0.00
-diam_eq_rel_medio                0.101     0.112   0.41   0.1455      0.00
-circularidad_media               0.781     0.768   0.64   0.1493      0.00
-glcm_contrast                    0.722     0.722   0.58   0.1571      0.00
-area_cv                          0.523     0.479   0.61   0.1893      0.00
-excentricidad_media              0.719     0.761   0.39   0.1976      0.00
-ratio_ejes_medio                 0.672     0.631   0.61   0.2368      0.00
-glcm_energy                      0.186     0.190   0.37   0.2417      0.00
-glcm_correlation                 0.973     0.974   0.44   0.3078      0.00
-clark_evans_R                    1.024     0.948   0.58   0.3201      0.00
-brillo_estroma                   0.309     0.323   0.43   0.4473      0.00
-solidez_media                    0.923     0.919   0.58   0.4792      0.00
-estroma_entropia                 5.725     5.717   0.52   0.6560      0.00
-cnr_fol_estroma                  1.483     1.439   0.54   0.7076      0.00
-cnr_interfaz_medio               1.657     1.643   0.50   0.7085      0.00
-gradiente_borde_medio          101.231   103.569   0.46   0.7373      0.00
-area_max_px                    652.500   720.000   0.47   0.8692      0.00
-estroma_std                      0.237     0.235   0.51   0.9740      0.00
-contraste_interfaz_medio        50.220    52.273   0.50   0.9776      0.00
-diam_eq_rel_max                  0.143     0.150   0.49   0.9828      0.00
+densidad_x1e4px                  1.264     0.737   0.89   0.0001      0.00
+n_foliculos                      5.000     3.000   0.88   0.0001      0.00
+ratio_area_fol_estroma           0.066     0.033   0.79   0.0010      0.00
+frac_area_foliculos              0.060     0.031   0.79   0.0010      0.00
+area_total_px                 2267.000  1269.000   0.78   0.0012      0.00
+area_roi_px                  40619.000 40658.000   0.40   0.0068      0.00
+frac_area_rechazos               0.041     0.046   0.36   0.1330      0.00
+glcm_homogeneity                 0.791     0.801   0.41   0.2662      0.00
+glcm_dissimilarity               0.444     0.426   0.59   0.3139      0.00
+brillo_estroma                   0.297     0.314   0.41   0.3287      0.00
+glcm_contrast                    0.580     0.568   0.57   0.4821      0.00
+glcm_energy                      0.234     0.241   0.43   0.4970      0.00
+estroma_entropia                 5.250     5.228   0.54   0.6397      0.00
+estroma_std                      0.156     0.156   0.54   0.6528      0.00
+glcm_correlation                 0.953     0.953   0.53   0.8134      0.00
 
 PCOS vs sanas, fuente kaggle: 4 vs 4 grupos
 característica                    PCOS      sana    AUC  p perm.  inestab.
-area_roi_px                  43926.500 29548.750   1.00   0.0286      0.28
-frac_area_foliculos              0.086     0.019   1.00   0.0286      0.12
-ratio_area_fol_estroma           0.101     0.020   1.00   0.0286      0.11
-area_total_px                 3756.250   600.500   1.00   0.0286      0.12
-area_media_px                  389.755   163.501   1.00   0.0286      0.16
-area_mediana_px                341.625   142.500   1.00   0.0286      0.24
-area_max_px                    985.250   257.250   1.00   0.0286      0.22
-area_cv                          0.626     0.323   1.00   0.0286      0.44
-diam_eq_rel_max                  0.166     0.100   1.00   0.0286      0.30
-solidez_media                    0.925     0.895   1.00   0.0286      0.41
-dist_vecino_rel                  0.156     0.360   0.00   0.0286      0.28
-clark_evans_R                    1.068     1.552   0.00   0.0286      0.34
-brillo_foliculos                 0.067     0.153   0.00   0.0286      0.17
-ratio_brillo_fol_estroma         0.207     0.446   0.00   0.0286      0.15
-contraste_michelson              0.657     0.384   1.00   0.0286      0.15
-glcm_homogeneity                 0.781     0.740   0.94   0.0571      0.12
-excentricidad_media              0.781     0.846   0.06   0.0571      0.47
-glcm_contrast                    0.821     1.129   0.12   0.0857      0.16
-glcm_dissimilarity               0.508     0.609   0.12   0.0857      0.13
-glcm_correlation                 0.968     0.946   0.88   0.0857      0.10
-cnr_interfaz_medio               1.884     1.597   0.88   0.0857      0.33
-ratio_ejes_medio                 0.598     0.524   0.81   0.1143      0.58
-circularidad_media               0.771     0.748   0.88   0.1429      0.76
-n_foliculos                     10.000     3.500   0.78   0.1714      0.16
-dominancia_max                   0.297     0.466   0.25   0.1714      0.39
-diam_eq_rel_medio                0.102     0.082   0.75   0.1714      0.23
-estroma_std                      0.233     0.209   0.81   0.2000      0.15
-frac_area_rechazos               0.049     0.021   0.75   0.2286      0.21
-area_min_px                    104.000    94.250   0.75   0.2286      0.51
-densidad_x1e4px                  2.202     1.126   0.75   0.2857      0.21
-glcm_energy                      0.204     0.182   0.62   0.3429      0.22
-contraste_interfaz_medio        50.139    40.181   0.62   0.3429      0.16
-gradiente_borde_medio          105.231    91.801   0.56   0.4857      0.23
-estroma_entropia                 5.607     5.613   0.56   0.7429      0.17
-brillo_estroma                   0.325     0.292   0.56   0.7714      0.17
-cnr_fol_estroma                  1.356     1.341   0.50   0.8286      0.30
+n_foliculos                      8.000     1.000   1.00   0.0286      0.11
+area_roi_px                  42846.250 28058.000   1.00   0.0286      0.30
+frac_area_foliculos              0.073     0.005   1.00   0.0286      0.09
+ratio_area_fol_estroma           0.084     0.005   1.00   0.0286      0.08
+area_total_px                 3142.000   133.250   1.00   0.0286      0.09
+area_cv                          0.548     0.000   1.00   0.0286      0.28
+solidez_media                    0.922     0.891   1.00   0.0286      0.50
+brillo_foliculos                 0.063     0.147   0.00   0.0286      0.19
+ratio_brillo_fol_estroma         0.201     0.431   0.00   0.0286      0.15
+contraste_michelson              0.666     0.399   1.00   0.0286      0.15
+densidad_x1e4px                  1.848     0.300   0.94   0.0571      0.14
+estroma_std                      0.164     0.123   0.94   0.0571      0.06
+glcm_correlation                 0.945     0.854   0.94   0.0571      0.09
+area_media_px                  388.928   112.500   0.94   0.0571      0.18
+area_max_px                    921.000   121.250   0.94   0.0571      0.15
+dominancia_max                   0.324     1.000   0.06   0.0571      0.24
+diam_eq_rel_max                  0.168     0.081   0.94   0.0571      0.18
+dist_vecino_rel                  0.138     0.549   0.06   0.0571      0.19
+cnr_interfaz_medio               1.728     1.498   0.94   0.0571      0.27
+estroma_entropia                 5.316     4.926   0.88   0.0857      0.06
+area_mediana_px                367.875   112.500   0.88   0.0857      0.22
+clark_evans_R                    0.970     1.855   0.19   0.1143      0.20
+excentricidad_media              0.770     0.838   0.19   0.1429      0.68
+frac_area_rechazos               0.058     0.025   0.88   0.1714      0.31
+ratio_ejes_medio                 0.620     0.545   0.75   0.1714      0.75
+diam_eq_rel_medio                0.106     0.076   0.75   0.2286      0.23
+gradiente_borde_medio           86.041   105.122   0.25   0.2286      0.35
+contraste_interfaz_medio        41.795    34.641   0.69   0.3143      0.16
+glcm_dissimilarity               0.482     0.595   0.31   0.4000      0.15
+glcm_contrast                    0.786     1.010   0.31   0.4286      0.17
+glcm_energy                      0.220     0.243   0.31   0.4286      0.14
+glcm_homogeneity                 0.784     0.744   0.69   0.4571      0.14
+area_min_px                    117.500   103.500   0.50   0.7714      0.79
+brillo_estroma                   0.311     0.287   0.56   0.8571      0.15
+cnr_fol_estroma                  1.306     1.379   0.56   0.9143      0.24
+circularidad_media               0.773     0.777   0.50   0.9429      0.74
 
-PCOS vs sanas, fuente TODAS (permutando etiquetas dentro de cada fuente): 18 vs 41 grupos
+PCOS vs sanas, fuente TODAS (permutando etiquetas dentro de cada fuente): 17 vs 41 grupos
 característica                    PCOS      sana    AUC  p perm.  inestab.  mismo sentido
-densidad_x1e4px                  2.173     1.228   0.89   0.0000      0.02             si
-n_foliculos                      8.000     5.000   0.88   0.0000      0.02             si
-dominancia_max                   0.232     0.360   0.17   0.0005      0.04             si
-frac_area_foliculos              0.070     0.048   0.73   0.0008      0.02             si
-dist_vecino_rel                  0.167     0.209   0.28   0.0009      0.04             si
-ratio_area_fol_estroma           0.079     0.052   0.74   0.0009      0.02             si
-area_total_px                 2879.000  1937.000   0.72   0.0012      0.02             si
-brillo_foliculos                 0.073     0.101   0.32   0.0046      0.01             si
-ratio_brillo_fol_estroma         0.231     0.308   0.31   0.0055      0.02             si
-contraste_michelson              0.624     0.530   0.69   0.0093      0.02             si
-area_cv                          0.560     0.450   0.62   0.0356      0.04             si
-excentricidad_media              0.734     0.766   0.38   0.0583      0.03             si
-solidez_media                    0.923     0.918   0.59   0.0673      0.04             si
-ratio_ejes_medio                 0.631     0.628   0.62   0.0724      0.04             si
-circularidad_media               0.780     0.765   0.64   0.0858      0.03             si
-area_min_px                    111.000   121.000   0.37   0.1202      0.01             no
-area_roi_px                  40704.000 40643.000   0.44   0.1776      0.04             no
-diam_eq_rel_max                  0.143     0.148   0.50   0.3125      0.02             no
-area_mediana_px                306.250   342.000   0.37   0.3427      0.01             no
-area_max_px                    660.000   697.000   0.49   0.3543      0.02             no
-diam_eq_rel_medio                0.101     0.101   0.42   0.4198      0.02             no
-estroma_std                      0.237     0.231   0.52   0.4217      0.02             si
-frac_area_rechazos               0.028     0.037   0.36   0.4555      0.03             no
-glcm_correlation                 0.973     0.974   0.45   0.4650      0.01             no
-contraste_interfaz_medio        50.220    49.709   0.50   0.5226      0.02             no
-brillo_estroma                   0.314     0.322   0.43   0.5233      0.01             no
-glcm_energy                      0.186     0.189   0.38   0.5530      0.01             no
-area_media_px                  328.594   349.167   0.43   0.5899      0.02             no
-estroma_entropia                 5.692     5.713   0.52   0.6071      0.01             no
-cnr_interfaz_medio               1.670     1.633   0.51   0.6158      0.03             si
-cnr_fol_estroma                  1.459     1.439   0.54   0.6417      0.03             si
-clark_evans_R                    1.044     0.972   0.56   0.7055      0.04             no
-glcm_contrast                    0.739     0.730   0.57   0.7874      0.02             no
-gradiente_borde_medio          101.231   103.326   0.46   0.8664      0.03             no
-glcm_dissimilarity               0.479     0.478   0.61   0.8986      0.02             no
-glcm_homogeneity                 0.784     0.789   0.38   0.9314      0.02             no
+densidad_x1e4px                  1.264     0.737   0.89   0.0000      0.02             si
+n_foliculos                      5.000     3.000   0.88   0.0000      0.02             si
+ratio_area_fol_estroma           0.074     0.029   0.80   0.0001      0.01             si
+frac_area_foliculos              0.067     0.027   0.80   0.0001      0.01             si
+area_total_px                 2708.000  1116.000   0.79   0.0001      0.01             si
+glcm_correlation                 0.952     0.951   0.54   0.1364      0.01             no
+estroma_std                      0.157     0.150   0.56   0.1511      0.01             no
+area_roi_px                  40703.000 40643.000   0.42   0.1643      0.04             no
+estroma_entropia                 5.257     5.213   0.55   0.2379      0.01             si
+glcm_energy                      0.230     0.241   0.43   0.3449      0.01             si
+brillo_estroma                   0.297     0.312   0.41   0.3909      0.01             no
+frac_area_rechazos               0.041     0.043   0.38   0.4744      0.02             no
+glcm_homogeneity                 0.791     0.799   0.42   0.7319      0.01             no
+glcm_contrast                    0.615     0.572   0.57   0.8005      0.02             no
+glcm_dissimilarity               0.444     0.428   0.58   0.8689      0.01             no
 
 AUC: sobre medianas de grupo, calculado dentro de cada fuente (1 = todas las PCOS por encima
   de todas las sanas, 0,5 = nada). Con varias fuentes es el promedio de los AUC de cada una.
