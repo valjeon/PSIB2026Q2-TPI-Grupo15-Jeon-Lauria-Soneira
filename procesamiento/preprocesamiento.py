@@ -369,20 +369,25 @@ def leer_splits(archivo="splits.csv"):
         return [r for r in csv.DictReader(fh)]
 
 
-def armar_muestra(n_por_clase, rng):
+def armar_muestra(n_por_clase, rng, splits="splits.csv", fuente=None, solo_cv=True):
     """Devuelve [(ruta, clase)], balanceada por clase, independiente de near-duplicados.
-    Con splits.csv usa solo split == "cv" (el hold-out no se toca) y una imagen por grupo."""
-    filas = leer_splits()
+    Con splits.csv usa solo split == "cv" (el hold-out no se toca) y una imagen por grupo.
+    fuente: si se da (ej. "dv"), solo imágenes cuyo nombre empieza con ese prefijo.
+    solo_cv=False: incluye también el hold-out (solo para fuentes que no se usan para ajustar)."""
+    filas = leer_splits(splits)
     por_clase = defaultdict(list)
     if filas is not None:
         por_grupo = {}
         for r in filas:
-            if r["split"] != "cv":
+            if solo_cv and r["split"] != "cv":
+                continue
+            if fuente and not Path(r["path"]).name.startswith(f"{fuente}_"):
                 continue
             por_grupo.setdefault((r["clase"], r["grupo"]), []).append(ROOT / r["path"])
         for (cl, _), rutas in por_grupo.items():
             por_clase[cl].append(rng.choice(rutas))
-        origen = "splits.csv (solo split=cv, una imagen por grupo)"
+        origen = (f"{splits} ({'solo split=cv' if solo_cv else 'cv + hold-out'}, una imagen por grupo"
+                  + (f", fuente {fuente})" if fuente else ")"))
     else:
         for p in sorted(CLEAN.rglob("*")):
             if p.is_file() and p.suffix.lower() in EXT:

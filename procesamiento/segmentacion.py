@@ -216,7 +216,7 @@ def segment_detalle(entrada, filtro="mediana5", contraste="estirar", tam=256,
     if conservar_aspecto:
         g = base_aspecto(entrada, tam)
     else:
-        from preprocess import base
+        from preprocesamiento import base
         g = base(entrada, tam)
     roi = mascara_abanico(g)
     pre = preprocesar_roi(g, roi, filtro, contraste)
@@ -778,7 +778,7 @@ Uso:
     python segmentacion.py ver-casos --contraste-min 20      # mismos parámetros que usaste al comparar
 """
     ap = argparse.ArgumentParser()
-    ap.add_argument("--filtro", default="mediana")
+    ap.add_argument("--filtro", default="mediana5")
     ap.add_argument("--contraste", default="estirar")
     ap.add_argument("--metodo", default="multiotsu")
     ap.add_argument("--n", type=int, default=6, help="imágenes por fila")
@@ -1017,29 +1017,51 @@ Criterio (el mismo en todas las imágenes, y fijado antes de empezar):
   va sobre el borde del folículo. No marques sombras acústicas ni zonas oscuras del estroma sin
   borde claro. Ante la duda, siempre la misma decisión (por ejemplo, no marcar).
 
-Muestra: imágenes de split == "cv" (una por grupo), balanceadas por clase, con la misma semilla
-que preprocesamiento.py anotar-rois. La mitad de cada clase queda como "ajuste" (para calibrar parámetros de la
-segmentación) y la otra mitad como "reporte" (solo para medir el resultado final).
-No cambies --n-por-clase ni --seed a mitad de camino: cambiaría la muestra.
+Muestra: imágenes de split == "cv" del CSV --splits (una por grupo), balanceadas por clase, con la
+misma semilla que preprocesamiento.py anotar-rois. Con --fuente se toman solo las imágenes cuyo
+nombre empieza con ese prefijo (ej. dv = Dataverse). La mitad de cada clase queda como "ajuste"
+(para calibrar parámetros de la segmentación) y la otra mitad como "reporte" (solo para medir el
+resultado final). No cambies --n-por-clase, --seed, --splits ni --fuente a mitad de camino:
+cambiaría la muestra.
 
-Salidas:
-  mascaras/<clase>__<imagen>.png   etiquetas (0 = fondo, 1..N = folículo i)
-  mascaras.csv                     índice: imagen, clase, máscara, n, conjunto, tam, zx, zy, zlado
-                                   (zlado = 0 significa que la zona es la imagen completa)
+Salidas (con --sufijo, por ejemplo _dv, los nombres llevan ese sufijo y no se mezclan):
+  mascaras<sufijo>/<clase>__<imagen>.png   etiquetas (0 = fondo, 1..N = folículo i)
+  mascaras<sufijo>.csv                     índice: imagen, clase, máscara, n, conjunto, tam,
+                                           zx, zy, zlado (zlado = 0: la zona es la imagen completa)
 
 Uso:
-    python segmentacion.py anotar-mascaras --n-por-clase 15
+    python segmentacion.py anotar-mascaras --n-por-clase 15                       # Kaggle (como antes)
+    python segmentacion.py anotar-mascaras --splits splits2.csv --fuente dv --sufijo _dv --n-por-clase 10
+    python segmentacion.py comparar --mascaras mascaras_dv.csv --conjunto todos --combos multiotsu+mediana5+estirar
 """
+    global CARPETA, INDICE
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-por-clase", type=int, default=15)
     ap.add_argument("--tam", type=int, default=256)
     ap.add_argument("--zoom", type=int, default=3)
     ap.add_argument("--zona", type=int, default=128, help="lado del cuadrado de evaluación (px de 256)")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--splits", default="splits.csv", help="CSV de la partición (en la raíz del repo)")
+    ap.add_argument("--fuente", default=None,
+                    help="solo imágenes cuyo nombre empieza con este prefijo (ej. dv)")
+    ap.add_argument("--sufijo", default="",
+                    help="sufijo para la carpeta y el índice (ej. _dv -> mascaras_dv/, mascaras_dv.csv)")
+    ap.add_argument("--incluir-holdout", action="store_true",
+                    help="tomar también imágenes del hold-out (solo para fuentes que no se usan para ajustar)")
     args = ap.parse_args(argv)
 
+    CARPETA = ROOT / f"mascaras{args.sufijo}"
+    INDICE = ROOT / f"mascaras{args.sufijo}.csv"
+    if args.fuente and not args.sufijo:
+        print(f"AVISO: --fuente {args.fuente} sin --sufijo: las máscaras se suman a {INDICE.name}, "
+              "junto con las de otras fuentes.")
+
     rng = random.Random(args.seed)
-    muestra, origen = armar_muestra(args.n_por_clase, rng)
+    muestra, origen = armar_muestra(args.n_por_clase, rng, args.splits, args.fuente,
+                                    solo_cv=not args.incluir_holdout)
+    if not muestra:
+        raise SystemExit(f"No hay imágenes con split=cv en {args.splits}"
+                         + (f" con el prefijo '{args.fuente}_'" if args.fuente else "") + ".")
     conjunto = asignar_conjunto(muestra)
     rng.shuffle(muestra)   # mezcla las clases para no anotar todas las infected seguidas
     migrar_indice()
@@ -1047,6 +1069,7 @@ Uso:
     pendientes = [(p, cl) for p, cl in muestra if p not in hechas]
     print(f"Muestra: {origen}. Total {len(muestra)} | ya anotadas: "
           f"{len(muestra) - len(pendientes)} | pendientes {len(pendientes)}")
+    print(f"Guardando en {CARPETA.name}/ y {INDICE.name}")
 
     vent = "anotar mascaras"
     cv2.namedWindow(vent, cv2.WINDOW_AUTOSIZE)
