@@ -1,0 +1,49 @@
+combinacion,dice,f1,finalista,motivo
+multiotsu+wiener5+ninguno,0.6249,0.4557,1,
+chanvese+frost7+ninguno,0.6183,0.4211,1,
+chanvese+wiener5+ninguno,0.6041,0.4337,0,dominada por multiotsu+wiener5+ninguno
+otsu+frost7+ninguno,0.5991,0.4,0,dominada por multiotsu+wiener5+ninguno
+chanvese+mediana5+ninguno,0.598,0.4337,0,dominada por multiotsu+wiener5+ninguno
+chanvese+ninguno+ninguno,0.5937,0.5155,1,
+otsu+gauss1.0+ninguno,0.5824,0.4632,1,
+otsu+mediana5+ninguno,0.5801,0.4842,1,
+chanvese+wiener3+ninguno,0.572,0.5,1,
+multiotsu+gauss1.0+ninguno,0.567,0.4444,0,dominada por chanvese+ninguno+ninguno
+multiotsu+frost7+ninguno,0.5661,0.3684,0,dominada por multiotsu+wiener5+ninguno
+multiotsu+wiener3+ninguno,0.5608,0.5238,1,
+chanvese+gauss1.0+ninguno,0.5562,0.4773,0,dominada por chanvese+ninguno+ninguno
+adaptativo+frost7+ninguno,0.5222,0.274,0,dominada por multiotsu+wiener5+ninguno
+multiotsu+ninguno+ninguno,0.5095,0.4889,0,dominada por chanvese+ninguno+ninguno
+multiotsu+mediana5+ninguno,0.5054,0.4337,0,dominada por multiotsu+wiener5+ninguno
+otsu+ninguno+ninguno,0.4903,0.5474,1,
+otsu+wiener5+ninguno,0.4883,0.4444,0,dominada por chanvese+ninguno+ninguno
+multiotsu+ninguno+estirar,0.4309,0.4314,0,dominada por multiotsu+wiener5+ninguno
+multiotsu+wiener5+estirar,0.4241,0.3878,0,dominada por multiotsu+wiener5+ninguno
+otsu+wiener3+ninguno,0.3957,0.5361,1,
+chanvese+wiener5+estirar,0.3557,0.4112,0,no supera al predictor vacío
+otsu+ninguno+estirar,0.3416,0.5091,0,no supera al predictor vacío
+adaptativo+ninguno+ninguno,0.3252,0.3371,0,no supera al predictor vacío
+multiotsu+mediana5+estirar,0.3129,0.3964,0,no supera al predictor vacío
+adaptativo+wiener3+ninguno,0.3096,0.3133,0,no supera al predictor vacío
+chanvese+frost7+estirar,0.2955,0.3333,0,no supera al predictor vacío
+chanvese+ninguno+estirar,0.2923,0.3967,0,no supera al predictor vacío
+chanvese+wiener3+estirar,0.2859,0.3651,0,no supera al predictor vacío
+adaptativo+mediana5+ninguno,0.279,0.3,0,no supera al predictor vacío
+multiotsu+frost7+estirar,0.2764,0.3455,0,no supera al predictor vacío
+adaptativo+gauss1.0+ninguno,0.2763,0.275,0,no supera al predictor vacío
+adaptativo+wiener5+ninguno,0.2666,0.2895,0,no supera al predictor vacío
+otsu+gauss1.0+estirar,0.2485,0.4,0,no supera al predictor vacío
+multiotsu+wiener3+estirar,0.2472,0.4231,0,no supera al predictor vacío
+otsu+mediana5+estirar,0.2467,0.448,0,no supera al predictor vacío
+otsu+wiener5+estirar,0.2406,0.4248,0,no supera al predictor vacío
+otsu+wiener3+estirar,0.2359,0.4522,0,no supera al predictor vacío
+otsu+frost7+estirar,0.2346,0.3784,0,no supera al predictor vacío
+adaptativo+mediana5+estirar,0.2291,0.3871,0,no supera al predictor vacío
+multiotsu+gauss1.0+estirar,0.229,0.3509,0,no supera al predictor vacío
+chanvese+gauss1.0+estirar,0.2277,0.3621,0,no supera al predictor vacío
+adaptativo+wiener3+estirar,0.2237,0.374,0,no supera al predictor vacío
+adaptativo+ninguno+estirar,0.2227,0.378,0,no supera al predictor vacío
+adaptativo+wiener5+estirar,0.2223,0.3607,0,no supera al predictor vacío
+chanvese+mediana5+estirar,0.2213,0.3937,0,no supera al predictor vacío
+adaptativo+gauss1.0+estirar,0.2184,0.3594,0,no supera al predictor vacío
+adaptativo+frost7+estirar,0.2118,0.3125,0,no supera al predictor vacío
