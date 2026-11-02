@@ -11,7 +11,7 @@ con sus clases infected / non-infected. El dataset original está en
 
 - `data/raw/`: dataset original, tal cual se descargó
 - `data/all/`: train y test unificados (se genera con el script)
-- `merge_data.py`: script de unificación
+- `procesamiento/limpieza.py unir`: unifica train y test (y otros datasets) en `data/all/`
 
 ## Código (`procesamiento/`)
 
@@ -19,7 +19,7 @@ Cuatro archivos, cada uno con comandos (`python procesamiento/<archivo>.py <coma
 
 | Archivo | Comandos |
 |---|---|
-| `limpieza.py` | `limpiar`, `auditar`, `splits`, `duplicados` |
+| `limpieza.py` | `unir`, `limpiar`, `auditar`, `splits`, `duplicados` |
 | `preprocesamiento.py` | `comparar`, `anotar-rois`, `elegir-filtro`, `procesar` |
 | `segmentacion.py` | `comparar`, `ver-casos`, `anotar-mascaras` |
 | `texturas.py` | (sin comandos) características de folículos y estroma |
@@ -27,7 +27,7 @@ Cuatro archivos, cada uno con comandos (`python procesamiento/<archivo>.py <coma
 ## Orden en que se corren
 
 ```
-python merge_data.py
+python procesamiento/limpieza.py unir     # con otro dataset: --extra data/raw_dataverse --fuente dv
 python procesamiento/limpieza.py limpiar
 python procesamiento/limpieza.py auditar
 python procesamiento/limpieza.py splits

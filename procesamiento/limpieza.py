@@ -1,11 +1,12 @@
 """Limpieza y partición del dataset (módulo de A).
 
+    python procesamiento/limpieza.py unir         # data/raw (train+test de Kaggle) [+ otro dataset] -> data/all
     python procesamiento/limpieza.py limpiar      # data/all -> data/clean (ilegibles, vacías, duplicadas)
     python procesamiento/limpieza.py auditar      # tamaños, marcas y control de atajos por metadatos
     python procesamiento/limpieza.py splits       # grupos pHash + hold-out + folds -> splits.csv
     python procesamiento/limpieza.py duplicados   # grupos ORB+RANSAC (rotadas/recortadas) -> splits2.csv
 
-Orden: limpiar -> auditar -> splits -> duplicados. Cada comando acepta -h.
+Orden: unir -> limpiar -> auditar -> splits -> duplicados. Cada comando acepta -h.
 """
 from collections import Counter, defaultdict, namedtuple
 import argparse
@@ -33,6 +34,82 @@ CLEAN = ROOT / "data" / "clean"
 REPORTES = ROOT / "reports"
 EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+
+# ============================================================================
+# COMANDO unir: data/raw (+ datasets extra) -> data/all
+# ============================================================================
+RAW = ROOT / "data" / "raw"
+ALL = ROOT / "data" / "all"
+
+
+def cmd_unir(argv=None):
+    """Une las particiones de Kaggle y, opcionalmente, otro dataset en data/all/.
+
+    Kaggle: data/raw/{train,test}/<clase>/x.jpg -> data/all/<clase>/{train,test}_x.jpg
+    (el prefijo conserva el origen). Otro dataset (--extra): una carpeta con imágenes
+    mezcladas, en subcarpetas o no, cuyo nombre empieza con --prefijo-pos (PCOS) o
+    --prefijo-neg (sana) -> data/all/<clase>/<fuente>_<nombre>. La fuente queda marcada en
+    el nombre; texturas.py la usa para comparar dentro de cada fuente.
+
+    python procesamiento/limpieza.py unir
+    python procesamiento/limpieza.py unir --extra data/raw_dataverse --fuente dv
+    python procesamiento/limpieza.py unir --extra data/raw_dataverse --fuente dv --sin-kaggle
+    """
+    ap = argparse.ArgumentParser(description="Une los datasets en data/all/")
+    ap.add_argument("--extra", default=None, help="carpeta de otro dataset (imágenes mezcladas)")
+    ap.add_argument("--fuente", default=None, help="prefijo corto de esa fuente, sin guiones bajos (ej. dv)")
+    ap.add_argument("--prefijo-pos", default="pco", help="los nombres que empiezan así son PCOS (infected)")
+    ap.add_argument("--prefijo-neg", default="normal", help="los nombres que empiezan así son sanas (notinfected)")
+    ap.add_argument("--sin-kaggle", action="store_true", help="solo sumar --extra, sin tocar lo de Kaggle")
+    args = ap.parse_args(argv)
+    if args.extra and (not args.fuente or "_" in args.fuente):
+        raise SystemExit("Con --extra hace falta --fuente (un prefijo corto sin guiones bajos, ej. dv).")
+    if args.sin_kaggle and not args.extra:
+        raise SystemExit("--sin-kaggle solo tiene sentido con --extra.")
+
+    cuenta = Counter()
+    if not args.sin_kaggle:
+        if not RAW.exists():
+            raise SystemExit(f"No existe {RAW}. Poné ahí el dataset de Kaggle (train/ y test/).")
+        for split in ("train", "test"):
+            for cls_dir in sorted((RAW / split).iterdir()) if (RAW / split).exists() else []:
+                if not cls_dir.is_dir():
+                    continue
+                out = ALL / cls_dir.name
+                out.mkdir(parents=True, exist_ok=True)
+                for img in sorted(cls_dir.iterdir()):
+                    if img.is_file() and img.suffix.lower() in EXT:
+                        shutil.copy2(img, out / f"{split}_{img.name}")
+                        cuenta[(f"kaggle/{split}", cls_dir.name)] += 1
+    if args.extra:
+        carpeta = Path(args.extra)
+        carpeta = carpeta if carpeta.is_absolute() else ROOT / carpeta
+        if not carpeta.exists():
+            raise SystemExit(f"No existe {carpeta}.")
+        sin_clase = []
+        for img in sorted(carpeta.rglob("*")):
+            if not img.is_file() or img.suffix.lower() not in EXT:
+                continue
+            nombre = img.name.lower()
+            if nombre.startswith(args.prefijo_pos.lower()):
+                clase = "infected"
+            elif nombre.startswith(args.prefijo_neg.lower()):
+                clase = "notinfected"
+            else:
+                sin_clase.append(img.name)
+                continue
+            (ALL / clase).mkdir(parents=True, exist_ok=True)
+            shutil.copy2(img, ALL / clase / f"{args.fuente}_{img.name}")
+            cuenta[(args.fuente, clase)] += 1
+        if sin_clase:
+            print(f"Sin clase (no empiezan con '{args.prefijo_pos}' ni '{args.prefijo_neg}'): "
+                  f"{len(sin_clase)}, ej. {sin_clase[:3]}")
+    if not cuenta:
+        raise SystemExit("No se copió ninguna imagen: revisá las carpetas de origen.")
+    for (fte, cl), n in sorted(cuenta.items()):
+        print(f"  {fte:14s}{cl:13s}{n:6d}")
+    print(f"Total en {ALL}: {sum(1 for _ in ALL.rglob('*') if _.is_file())} archivos")
 
 
 # ============================================================================
@@ -757,6 +834,7 @@ Uso (desde procesamiento/):
 
 
 COMANDOS = {
+    "unir": cmd_unir,
     "limpiar": cmd_limpiar,
     "auditar": cmd_auditar,
     "splits": cmd_splits,
