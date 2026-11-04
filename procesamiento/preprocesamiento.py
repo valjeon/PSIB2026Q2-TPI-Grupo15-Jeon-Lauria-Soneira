@@ -229,21 +229,28 @@ def ssi(orig, filt):
     return float((f.std() / (f.mean() + 1e-6)) / (o.std() / (o.mean() + 1e-6) + 1e-9))
 
 def beta(orig, filt):
-    """Preservación de bordes: correlación entre laplacianos (1 = bordes intactos)."""
+    """ Mide la preservación de bordes: correlación entre laplacianos (1 = bordes intactos)."""
     lo = cv2.Laplacian(orig.astype(np.float32), cv2.CV_32F)
     lf = cv2.Laplacian(filt.astype(np.float32), cv2.CV_32F)
-    lo, lf = lo - lo.mean(), lf - lf.mean()
-    return float((lo * lf).sum() / (np.sqrt((lo ** 2).sum() * (lf ** 2).sum()) + 1e-9))
+    #aplica laplaciano
+    lo, lf = lo - lo.mean(), lf - lf.mean() #centra las señales en 0
+    return float((lo * lf).sum() / (np.sqrt((lo ** 2).sum() * (lf ** 2).sum()) + 1e-9)) 
+    #calcula la correlación cruzada
 
 def entropia(img):
+    #mide la riqueza en texturas o cantidad de información de la intensidad presente en una imagen
+    #se mide en bits por pixel
     h = np.bincount(img.ravel(), minlength=256).astype(np.float64)
     p = h[h > 0] / h.sum()
     return float(-(p * np.log2(p)).sum())
+    #entropía alta --> imagen rica en texturas, presencia de detalles
+    #se espera que de ligeramente menor a la imagen original porque se van a perder detalles con los filtros que suavizan
 
 
 #Para comparar filtros y contraste sobre una muestra
 def hoja(filas, titulos, lado=160, cab=26):
-    """Arma una grilla (BGR) con una imagen por celda."""
+    """Arma una grilla (BGR) con una imagen por celda. Nos sirve para la comparación de distintas combinaciones de 
+    funciones de preprocesamiento."""
     out = np.zeros((cab + len(filas) * lado, len(titulos) * lado, 3), np.uint8)
     for j, t in enumerate(titulos):
         cv2.putText(out, t, (j * lado + 4, 18), FONT, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
@@ -264,10 +271,10 @@ Salidas en reports/:
   preproc_contraste.png   la imagen filtrada con cada método de contraste
   preproc_metricas.csv    SSI y β por filtro; entropía y desvío por método de contraste
 
-Métricas (sin referencia limpia, como es habitual en ecografía):
+Métricas:
   SSI  = índice de supresión de speckle. < 1 suaviza; más bajo = más suavizado.
   beta = correlación de laplacianos con la original. 1 = bordes intactos.
-  Un buen filtro baja el SSI sin hundir beta. Complementar siempre mirando las figuras.
+  Se busca bajar el índice SSI sin que se reduzca mucho beta. 
 """
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-fig", type=int, default=8, help="imágenes en las figuras (mitad por clase)")
@@ -306,7 +313,7 @@ Métricas (sin referencia limpia, como es habitual en ecografía):
     cv2.imwrite(str(REPORTES / "preproc_contraste.png"),
                 hoja(f_contraste, [f"{args.filtro_ref}+{m}" for m in nombres_c]))
 
-    # ---------------- métricas
+    # Métricas
     acum_f = defaultdict(lambda: defaultdict(list))   # (filtro, clase) -> métrica -> valores
     tiempos = defaultdict(list)
     acum_c = defaultdict(lambda: defaultdict(list))
@@ -345,9 +352,7 @@ Métricas (sin referencia limpia, como es habitual en ecografía):
         w = csv.writer(f)
         w.writerow(["tipo", "metodo", "clase", "ssi", "beta", "entropia", "desvio", "n"])
         w.writerows(filas)
-    L += ["", "Figuras: reports/preproc_marcas.png, preproc_filtros.png, preproc_contraste.png",
-          "Elegir mirando las figuras: ¿se ven los folículos nítidos y sin halos? "
-          "Anotar la elección y su justificación en el informe."]
+    L += ["", "Figuras: reports/preproc_marcas.png, preproc_filtros.png, preproc_contraste.png"]
     texto = "\n".join(L)
     print(texto)
     (REPORTES / "resumen_comparacion_preproc.txt").write_text(texto + "\n", encoding="utf-8")
@@ -360,7 +365,6 @@ ZOOM = 3
 ROIS = ROOT / "rois.csv"
 CAMPOS = ["path", "clase", "x", "y", "lado", "tam"]
 
-
 def leer_splits(archivo="splits.csv"):
     f = ROOT / archivo
     if not f.exists():
@@ -371,9 +375,12 @@ def leer_splits(archivo="splits.csv"):
 
 def armar_muestra(n_por_clase, rng, splits="splits.csv", fuente=None, solo_cv=True):
     """Devuelve [(ruta, clase)], balanceada por clase, independiente de near-duplicados.
-    Con splits.csv usa solo split == "cv" (el hold-out no se toca) y una imagen por grupo.
+    Con splits.csv usa solo split == "cv" y una imagen por grupo.
     fuente: si se da (ej. "dv"), solo imágenes cuyo nombre empieza con ese prefijo.
-    solo_cv=False: incluye también el hold-out (solo para fuentes que no se usan para ajustar)."""
+    solo_cv=False: incluye también el hold-out. 
+    El uso de distintas divisiones del dataset sea cv o el hold-out es más relevante a la hora de utilizar Machine Learning. 
+    Para esta instancia del trabajo no es necesario considerarlo."""
+
     filas = leer_splits(splits)
     por_clase = defaultdict(list)
     if filas is not None:
@@ -390,7 +397,7 @@ def armar_muestra(n_por_clase, rng, splits="splits.csv", fuente=None, solo_cv=Tr
                   + (f", fuente {fuente})" if fuente else ")"))
     else:
         for p in sorted(CLEAN.rglob("*")):
-            if p.is_file() and p.suffix.lower() in EXT:
+            if p.is_file() and p.suffix.lower() in EXT: #si no encuentra splits.csv, toma imágenes de data/clean al azar
                 por_clase[p.parent.name].append(p)
         origen = "data/clean al azar (no hay splits.csv)"
     muestra = []
@@ -428,6 +435,7 @@ class Bloques:
         self.aviso = ""
 
 
+#Funciones de anotaciones
 def ya_anotadas():
     if not ROIS.exists():
         return set(), None
@@ -436,8 +444,7 @@ def ya_anotadas():
     conf = {(int(r["lado"]), int(r["tam"])) for r in filas}
     return {ROOT / r["path"] for r in filas}, (conf.pop() if len(conf) == 1 else "mezcla")
 
-
-def guardar(p, clase, bloques, lado, tam):
+def guardar(p, clase, bloques, lado, tam): #escribe las coordenadas de los bloques en rois.csv
     nuevo = not ROIS.exists()
     with open(ROIS, "a", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -446,8 +453,7 @@ def guardar(p, clase, bloques, lado, tam):
         for y, x in bloques:
             w.writerow([p.relative_to(ROOT).as_posix(), clase, x, y, lado, tam])
 
-
-def dibujar(estado, texto):
+def dibujar(estado, texto): #dibuja los rectángulos verdes de los bloques guardados y escribe los textos informativos
     im = cv2.resize(estado.g, None, fx=ZOOM, fy=ZOOM, interpolation=cv2.INTER_CUBIC)
     im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
     for y, x in estado.lista:
@@ -460,7 +466,7 @@ def dibujar(estado, texto):
 
 
 def cmd_anotar_rois(argv=None):
-    """Marcá a mano bloques de tejido homogéneo en una muestra de imágenes (para el ENL).
+    """Se marcan a mano bloques de tejido homogéneo en una muestra de imágenes (para el ENL).
 
 Controles (ventana de OpenCV, imagen ampliada 3x):
   clic izquierdo    agrega un bloque centrado en ese punto
@@ -469,13 +475,14 @@ Controles (ventana de OpenCV, imagen ampliada 3x):
   s                 saltea la imagen (no se guarda nada)
   q / ESC           guarda lo hecho y sale
 
-Criterio para elegir un bloque (el mismo en todas las imágenes, y SIN mirar ningún filtro):
-  tejido liso (estroma): sin bordes, sin folículos, sin sombras acústicas, sin marcas
-  ni cruces, y lejos del borde del ovario. Marcá 3 bloques por imagen (mínimo 1, máximo --k).
+Criterio para elegir un bloque: tejido liso (estroma) sin bordes, sin folículos, sin sombras acústicas, sin marcas
+  ni cruces, y lejos del borde del ovario. 
+  
+  Se marcan 3 bloques por imagen (mínimo 1, máximo --k).
 
-Se puede retomar: las imágenes que ya están en rois.csv se saltean.
+Se puede retomar porque las imágenes que ya están en rois.csv se saltean.
 Los bloques se guardan en coordenadas de la imagen base de --tam x --tam (la misma que usa
-preprocesamiento.py elegir-filtro), así que no cambies --tam ni --lado entre sesiones.
+preprocesamiento.py elegir-filtro).
 
 Uso:
     python preprocesamiento.py anotar-rois --n-por-clase 20          # 40 imágenes en total
@@ -573,13 +580,12 @@ def figura_rois(items, lado_bloque, destino, cols=4, n=12):
 
 # ---------------------------------------------------------------- main
 def cmd_elegir_filtro(argv=None):
-    """Elige el filtro de speckle usando ENL como único criterio, sobre los bloques que marcaste a mano.
+    """Elige el filtro de speckle usando ENL como único criterio, sobre los bloques que se marcaron a mano.
  
 ENL = media^2 / varianza, medido en bloques de tejido homogéneo. Más ENL = más suavizado del speckle.
  
 Entrada: rois.csv, generado por preprocesamiento.py anotar-rois (imagen, clase, posición y tamaño de cada bloque).
-Los bloques son los MISMOS píxeles para la imagen original y para todos los filtros, así que la
-comparación es pareada. Se marcan antes de ver ningún filtro.
+Los bloques son los mismos píxeles para la imagen original y para todos los filtros.
  
 Salidas en reports/:
   enl_resultados_manual.csv   una fila por imagen y filtro (ENL, cociente vs. original, beta)
@@ -661,21 +667,15 @@ Uso:
                      and (r[o] > r[m] or b[o] > b[m])] for m in nombres}
     L += ["", "FILTROS NO DOMINADOS (ningún otro suaviza más Y conserva más bordes):",
           "  " + ", ".join(m for m in orden if not dominados[m])]
-    L += ["",
-          "ATENCIÓN: el ENL sube con cualquier suavizado, así que solo con ENL gana el filtro que más",
-          "borronea. Mirá beta y las imágenes filtradas (comparar_preprocesamiento.py) antes de decidir,",
-          "y validá el finalista con máscaras manuales (Dice) en unas 15-20 imágenes.",
-          "Revisá reports/enl_rois_manual.png: los cuadrados verdes tienen que caer en tejido liso, no en bordes."]
+    L += ["Mirar beta y las imágenes filtradas (comparar_preprocesamiento.py) antes de decidir,",
+          "y validar el finalista con máscaras manuales (Dice) en unas 15-20 imágenes.",
+          "Revisar reports/enl_rois_manual.png: los cuadrados verdes tienen que caer en tejido liso, no en bordes."]
     texto = "\n".join(L)
     print(texto)
     (REPORTES / "enl_resumen_manual.txt").write_text(texto + "\n", encoding="utf-8")
 
 
-# ============================================================================
-# COMANDO procesar: data/clean -> data/pre + control de atajos
-# ============================================================================
 PRE = ROOT / "data" / "pre"
-
 
 def estadisticos(g):
     x = g.astype(np.float32) / 255.0
@@ -683,7 +683,7 @@ def estadisticos(g):
     z = (x - m) / (s + 1e-6)
     gx = cv2.Sobel(x, cv2.CV_32F, 1, 0)
     gy = cv2.Sobel(x, cv2.CV_32F, 0, 1)
-    return {
+    return { #se calculan todos los descriptores estadísticos sobre cada imagen
         "media": m, "desvio": s,
         "asimetria": float((z ** 3).mean()), "curtosis": float((z ** 4).mean()),
         "entropia": entropia(g),
@@ -694,7 +694,7 @@ def estadisticos(g):
 
 
 def grupos_de_splits(claves, archivo="splits.csv"):
-    """(clase, nombre sin extensión) -> grupo, desde el CSV de splits. None si falta algo."""
+    """(clase, nombre sin extensión) -> grupo, asocia cada imagen con su grupo en splits.csv"""
     f = ROOT / archivo
     if not f.exists():
         return None
