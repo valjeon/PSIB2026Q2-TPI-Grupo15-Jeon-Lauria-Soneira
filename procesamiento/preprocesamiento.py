@@ -27,110 +27,110 @@ import random
 import shutil
 import sys
 import time
-
 import cv2
 import numpy as np
 from PIL import Image
 from scipy import signal, stats
-
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-if ROOT.name == "procesamiento":  # funciona dentro de procesamiento/ o en la raíz del repo
+if ROOT.name == "procesamiento": 
     ROOT = ROOT.parent
 CLEAN = ROOT / "data" / "clean"
 REPORTES = ROOT / "reports"
 EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
-
-# ============================================================================
 # PIPELINE DE PREPROCESAMIENTO (marcas, recorte, tamaño, speckle, contraste, métricas)
-# ============================================================================
-# ---------------------------------------------------------------- lectura
+
 def leer(ruta):
-    """RGB uint8 (H, W, 3) sin importar el modo del archivo (L, P, RGBA...)."""
-    with Image.open(ruta) as im:
-        return np.asarray(im.convert("RGB"))
+    with Image.open(ruta) as im: #abre la imagen que está en la ruta indicada
+        return np.asarray(im.convert("RGB")) #la convierte al espacio de colores --> sirve para estandarizar
 
 
 def a_gris(rgb):
-    return cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY) #hace la transformación al espacio de grises
 
 
-# ---------------------------------------------------------------- marcas
+# Eliminación de las marcas
 def _componentes_chicas(binaria, area_max):
-    """Máscara con solo las componentes conexas de área <= area_max."""
+    #Construye una máscara con solo las componentes conexas de área <= area_max."""
     n, lab, stats, _ = cv2.connectedComponentsWithStats(binaria.astype(np.uint8), connectivity=8)
-    ids = np.where(stats[:, cv2.CC_STAT_AREA] <= area_max)[0]
-    ids = ids[ids > 0]
-    return np.isin(lab, ids)
+    ids = np.where(stats[:, cv2.CC_STAT_AREA] <= area_max)[0] #se guardan los ids de las eqiquetas con área menor o igual al valor max 
+    ids = ids[ids > 0] #elimina id=0 que es el fondo de la imagen para ignorarlo
+    return np.isin(lab, ids) #devuelve una matriz del tamaño original con valores 1 en los píxeles 
+    #que pertenecen a los objetos pequeños detectados, en el resto devuelve 0
 
 
 def mascara_marcas(rgb, sat_min=0.55, val_min=0.45, max_frac_color=0.03,
                    quitar_texto=True, max_frac_texto=0.002, max_frac_total=0.15, dilatar=3):
-    """Máscara (uint8 0/255) de anotaciones: color muy saturado (flechas, calibres) y
-    componentes blancas chicas (texto, cruces). Las zonas grandes de color (Doppler) y los
-    tintes suaves de toda la imagen NO se enmascaran. Si la máscara cubriría más de
-    `max_frac_total` de la imagen se descarta (es un tinte, no una anotación)."""
-    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    #Máscara de anotaciones: color muy saturado (flechas, calibres) y
+    #componentes blancas chicas (texto, cruces). Las zonas grandes de color (Doppler) y los
+    #tintes suaves de toda la imagen NO se enmascaran. Si la máscara cubre más de
+    #`max_frac_total` de la imagen se descarta.
+
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV) #convierte la imagen al espacio HSV
     s = hsv[..., 1] / 255.0
     v = hsv[..., 2] / 255.0
-    n = rgb.shape[0] * rgb.shape[1]
-    color = (s >= sat_min) & (v >= val_min)
-    m = _componentes_chicas(color, int(max_frac_color * n))
+    n = rgb.shape[0] * rgb.shape[1] #calcula el total de los pixeles de la imagen
+    color = (s >= sat_min) & (v >= val_min) #umbrales para detectar pixeles de alta saturación y alto brillo
+    m = _componentes_chicas(color, int(max_frac_color * n)) #conserva solo lás áreas de color pequeñas --> descarta regiones grandes coloreadas
     if quitar_texto:
-        blanco = a_gris(rgb) >= 245
-        m |= _componentes_chicas(blanco, max(30, int(max_frac_texto * n)))
+        blanco = a_gris(rgb) >= 245 #identifica los pixeles que se ven como blancos 
+        m |= _componentes_chicas(blanco, max(30, int(max_frac_texto * n)))  #conserva solos las regiones blancas pequeñas 
     if m.mean() > max_frac_total:
-        return np.zeros(m.shape, np.uint8)
+        return np.zeros(m.shape, np.uint8) #si la región de color es muy general de la imagen --> se considera que es un tinte que tiene la imagen y no un área específica
     m = m.astype(np.uint8) * 255
-    if dilatar > 0 and m.any():
-        m = cv2.dilate(m, np.ones((3, 3), np.uint8), iterations=dilatar)
+    if dilatar > 0 and m.any(): #si se detecta una marca
+        m = cv2.dilate(m, np.ones((3, 3), np.uint8), iterations=dilatar) #dilata el objeto 
     return m
-
 
 def quitar_marcas(rgb, **kw):
     """Devuelve (gris sin marcas, máscara usada)."""
-    gris = a_gris(rgb)
-    m = mascara_marcas(rgb, **kw)
-    if m.any():
-        gris = cv2.inpaint(gris, m, 3, cv2.INPAINT_TELEA)
-    return gris, m
+    gris = a_gris(rgb) #convierte la imagen a escala de grises
+    m = mascara_marcas(rgb, **kw) #guarda en m las marcas detectadas en la imagen rgb
+    if m.any(): #si se detecta alguna marca
+        gris = cv2.inpaint(gris, m, 3, cv2.INPAINT_TELEA) # se usa inpainting para rellenar las áreas en donde se eliminaron las marcas
+    return gris, m #devuelve la imagen limpia y la máscara binaria resultante
 
 
-# ---------------------------------------------------------------- geometría
 def recortar_util(gris, umbral=12, margen=2, min_frac=0.25):
-    """Recorta al rectángulo que contiene la componente más grande no negra."""
-    m = (cv2.GaussianBlur(gris, (5, 5), 0) > umbral).astype(np.uint8)
-    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    n, _, stats, _ = cv2.connectedComponentsWithStats(m)
+    #Recorta al rectángulo que contiene la componente más grande no negra --> extrae el objeto detectado
+    m = (cv2.GaussianBlur(gris, (5, 5), 0) > umbral).astype(np.uint8) #crea una máscara con los píxeles que superan el valor de brillo 12
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))#se hace una apertura para eliminar pequeños puntos brillantes
+    n, _, stats, _ = cv2.connectedComponentsWithStats(m) #detecta todas las regiones continuas en la máscara
     if n <= 1:
-        return gris
-    i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    x, y, w, h = stats[i, :4]
-    if w * h < min_frac * gris.size:  # recorte absurdo: no tocar
-        return gris
-    return gris[max(y - margen, 0):y + h + margen, max(x - margen, 0):x + w + margen]
+        return gris #si no se reconocen varios objetos --> devuelve la imagen original
+    i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) #encuentra la etiqueta de la región con la mayor área de píxeles, omitiendo el índice 0 que corresponde al fondo negro
+    x, y, w, h = stats[i, :4] 
+    if w * h < min_frac * gris.size:  # si la bounding box es muy pequeña asume que no hay un objeto principal
+        return gris #devuelve la imagen original
+    return gris[max(y - margen, 0):y + h + margen, max(x - margen, 0):x + w + margen] #hace el recorte agregando piceles a cada borde
 
 
 def a_tamano(gris, tam=256):
-    """tam x tam. Estira sin conservar el aspecto: rellenar con negro delataría la fuente."""
+   #dimensiona la imagen a una de 256x256
     achica = gris.shape[0] * gris.shape[1] > tam * tam
-    interp = cv2.INTER_AREA if achica else cv2.INTER_CUBIC
-    return cv2.resize(gris, (tam, tam), interpolation=interp)
+    interp = cv2.INTER_AREA if achica else cv2.INTER_CUBIC #si la imagen original es más grande hace un submuestreo, agrupa y pormedia áreas de píxeles
+    #si la imagen original es más pequeña la agranda interpolando de forma bicúbica
+    return cv2.resize(gris, (tam, tam), interpolation=interp) #devuelve la imagen redimensionada
 
-
-# ---------------------------------------------------------------- speckle
+# Para el ruido speckle
 def _locales(img, w):
-    f = img.astype(np.float32)
-    m = cv2.boxFilter(f, -1, (w, w), borderType=cv2.BORDER_REFLECT)
-    m2 = cv2.boxFilter(f * f, -1, (w, w), borderType=cv2.BORDER_REFLECT)
-    v = np.maximum(m2 - m * m, 0)
+    f = img.astype(np.float32) 
+    m = cv2.boxFilter(f, -1, (w, w), borderType=cv2.BORDER_REFLECT) #calcula la media local
+    m2 = cv2.boxFilter(f * f, -1, (w, w), borderType=cv2.BORDER_REFLECT) #eleva cada pixel al cuadrado y saca la media local
+    v = np.maximum(m2 - m * m, 0) #calcula la varianza
     return f, m, v
 
-
 def frost(img, w=7, K=2.0):
+    #Filtro adaptativo de Frost
+    #Calcula el coeficiente de variación local $ci^2 = \frac{v}{m^2}$. 
+    # Si la zona es homogénea (baja varianza), aplica un suavizado fuerte; 
+    # si está cerca de un borde o estructura importante (alta varianza), 
+    # reduce el suavizado para no borrar la información.Pondera los píxeles 
+    # vecinos con una función exponencial decreciente en función de la distancia 
+    # espacial y de la varianza local
     f, m, v = _locales(img, w)
     ci2 = v / (m * m + 1e-6)
     r = w // 2
@@ -147,26 +147,34 @@ def frost(img, w=7, K=2.0):
 
 
 def wiener(img, w=5):
+    #Filtro adaptativo de Wiener
+    #Se adapta al nivel de ruido estimado localmente.
+    # En regiones con alta varianza (bordes), realiza poco filtrado; 
+    # en regiones de baja varianza, realiza una mayor atenuación.
     with np.errstate(divide="ignore", invalid="ignore"):
         out = signal.wiener(img.astype(np.float64), (w, w))
     return np.clip(np.nan_to_num(out, nan=0.0), 0, 255).astype(np.uint8)
 
 
-def homomorfico(img, sigma=1.5):
-    """Log -> gaussiano -> exp. El log vuelve aditivo el ruido multiplicativo (speckle) y ahí
-    alcanza con un pasabajos común (Vanithamani y Umamaheswari, 2010, lo comparan con otros)."""
+def homomorfico(img, sigma=1.5): 
+    #Como el ruido speckle es multiplicativo, se aplica primero logaritmo para luego 
+    # pasar un filtro Gaussiano para sacar el ruido. Al final, se vuelve al dominio 
+    # original aplicando la exponencial. 
     u = np.log1p(img.astype(np.float32))
     u = cv2.GaussianBlur(u, (0, 0), sigma)
     return np.clip(np.expm1(u), 0, 255).astype(np.uint8)
 
 
 def homomorfico_wiener(img, w=3):
+    #En vez de aplicar un Gaussiano después del logaritmo,
+    #usa el filtro Wiener adaptativo para remover el ruido. 
     u = np.log1p(img.astype(np.float64))
     with np.errstate(divide="ignore", invalid="ignore"):
        u = np.nan_to_num(signal.wiener(u, (w, w)), nan=0.0)
     return np.clip(np.expm1(u), 0, 255).astype(np.uint8)
 
 
+#Se definen distintas variantes y combinaciones de parámetros para los filtros
 FILTROS = {"ninguno": lambda im: im}
 for w in (3, 5, 7):
     FILTROS[f"promedio{w}"] = lambda im, w=w: cv2.blur(im, (w, w))
@@ -181,49 +189,44 @@ FILTROS["homomorfico_wiener3"] = lambda im: homomorfico_wiener(im, 3)
 
 
 def filtrar(img, metodo="wiener3"):
-    for paso in metodo.split("+"):
+    for paso in metodo.split("+"): #permite encadenar filtros separándolos con el signo +
         img = FILTROS[paso](img)
-    return img
+    return img #devuelve la imagen procesada
 
 
-# ---------------------------------------------------------------- contraste
+#Para mejorar el contraste
 CONTRASTES = {
     "ninguno": lambda im: im,
     "global": cv2.equalizeHist
 }
-
-
-def contrastar(img, metodo="ninguno"):
+def contrastar(img, metodo="ninguno"): #pone por default no aplicar un mejoramiento del contraste
     return CONTRASTES[metodo](img)
 
 
-# ---------------------------------------------------------------- pipeline
+#Flujo de preprocesamiento --> integra todos los módulos
 def base(entrada, tam=256, marcas=True, recortar=True, texto=True):
-    """Gris sin marcas, recortado y a tamaño común (sin filtro ni contraste).
-    `entrada`: ruta o array RGB."""
-    rgb = leer(entrada) if isinstance(entrada, (str, Path)) else entrada
+    rgb = leer(entrada) if isinstance(entrada, (str, Path)) else entrada 
+    #detecta si la entrada es una ruta al archivo o una matriz de pixeles ya en memoria
     if marcas:
-        gris, _ = quitar_marcas(rgb, quitar_texto=texto)
+        gris, _ = quitar_marcas(rgb, quitar_texto=texto) #si tiene marcas, se eliminan
     else:
-        gris = a_gris(rgb)
+        gris = a_gris(rgb) #si no tiene, solo se convierte la imagen al espacio de grises
     if recortar:
-        gris = recortar_util(gris)
-    return a_tamano(gris, tam)
+        gris = recortar_util(gris) #si encuentra algo que recortar, elimina el espacio negro aislando la estructura
+    return a_tamano(gris, tam) #redimensiona la imagen recortada
 
 
 def preprocess(entrada, filtro="wiener3", contraste="ninguno", tam=256,
                marcas=True, recortar=True, texto=True):
-    """uint8 (tam, tam). Es la función que usa el resto del proyecto."""
-    g = base(entrada, tam, marcas, recortar, texto)
+    g = base(entrada, tam, marcas, recortar, texto) #se aplica lectura, inpainting, recorte y escalado a la imagen
     return contrastar(filtrar(g, filtro), contraste)
 
 
-# ---------------------------------------------------------------- métricas
+# Definición de métricas
 def ssi(orig, filt):
     """Índice de supresión de speckle (σ/μ filtrada ÷ σ/μ original). < 1 = suaviza."""
     o, f = orig.astype(np.float32), filt.astype(np.float32)
     return float((f.std() / (f.mean() + 1e-6)) / (o.std() / (o.mean() + 1e-6) + 1e-9))
-
 
 def beta(orig, filt):
     """Preservación de bordes: correlación entre laplacianos (1 = bordes intactos)."""
@@ -232,16 +235,13 @@ def beta(orig, filt):
     lo, lf = lo - lo.mean(), lf - lf.mean()
     return float((lo * lf).sum() / (np.sqrt((lo ** 2).sum() * (lf ** 2).sum()) + 1e-9))
 
-
 def entropia(img):
     h = np.bincount(img.ravel(), minlength=256).astype(np.float64)
     p = h[h > 0] / h.sum()
     return float(-(p * np.log2(p)).sum())
 
 
-# ============================================================================
-# COMANDO comparar: filtros y contrastes sobre una muestra
-# ============================================================================
+#Para comparar filtros y contraste sobre una muestra
 def hoja(filas, titulos, lado=160, cab=26):
     """Arma una grilla (BGR) con una imagen por celda."""
     out = np.zeros((cab + len(filas) * lado, len(titulos) * lado, 3), np.uint8)
