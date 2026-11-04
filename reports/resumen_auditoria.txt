@@ -1,22 +1,22 @@
-Imágenes auditadas: 1753
+Imágenes auditadas: 1751
 
-[infected]  n = 725  (train=0, test=711)
+[infected]  n = 724  (train=0, test=711)
   tamaños distintos: 8 | más frecuente: 300x300 (24 %)
-  ancho mediano: 300 | alto mediano: 300 | bytes medianos: 13922
-  modos: RGB=725
+  ancho mediano: 300 | alto mediano: 300 | bytes medianos: 13918
+  modos: RGB=724
   brillo medio: 73.1 | desvío medio: 61.0
   con >1 % de píxeles saturados: 28 % | con color (>0,1 % de píxeles): 0 %
 
-[notinfected]  n = 1028  (train=1, test=987)
+[notinfected]  n = 1027  (train=1, test=987)
   tamaños distintos: 5 | más frecuente: 984x848 (31 %)
-  ancho mediano: 850 | alto mediano: 578 | bytes medianos: 53980
-  modos: RGB=1026, P=1, L=1
+  ancho mediano: 850 | alto mediano: 578 | bytes medianos: 53983
+  modos: RGB=1025, P=1, L=1
   brillo medio: 54.3 | desvío medio: 44.4
   con >1 % de píxeles saturados: 0 % | con color (>0,1 % de píxeles): 5 %
 
-Chequeo de atajos: AUC solo con metadatos (tamaño, bytes, brillo, saturación, color) = 0.999 -> ALERTA: la clase se predice sin mirar el ovario; hay sesgo de adquisición
-  (CV sin agrupar: los near-duplicados lo inflan un poco. ~0,5 es lo esperable.)
-  AUC de cada característica sola (0,5 = no separa): aspecto=0.98, ancho=0.94, desvio=0.91, bytes=0.84, brillo=0.83, alto=0.79, frac_sat=0.57, frac_color=0.51
+Chequeo de atajos: mejor metadato solo = aspecto (AUC = 0.985) -> ALERTA: la clase se separa sin mirar el ovario; hay sesgo de adquisición
+  (AUC = U de Mann-Whitney normalizado; imágenes sin agrupar, los near-duplicados pesan.)
+  AUC de cada metadato solo (0,5 = no separa): aspecto=0.99, ancho=0.94, desvio=0.91, bytes=0.84, brillo=0.83, alto=0.79, frac_sat=0.57, frac_color=0.51
 
 Revisión visual pendiente (a mano):
   - /Users/molauria/PSIB_Grupo15_PCOS/reports/muestra_azar_<clase>.jpg y muestra_marcas_<clase>.jpg
