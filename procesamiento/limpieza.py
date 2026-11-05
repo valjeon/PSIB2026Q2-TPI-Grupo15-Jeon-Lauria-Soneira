@@ -6,7 +6,7 @@
     python procesamiento/limpieza.py splits       # grupos pHash + hold-out + folds -> splits.csv
     python procesamiento/limpieza.py duplicados   # grupos ORB+RANSAC (rotadas/recortadas) -> splits2.csv
 
-Orden: unir -> limpiar -> auditar -> splits -> duplicados. Cada comando acepta -h.
+Orden: unir -> limpiar -> auditar -> splits -> duplicados.
 """
 from collections import Counter, defaultdict, namedtuple
 import argparse
@@ -778,6 +778,9 @@ def cmd_duplicados(argv=None): # argumentos y atos de entrada
 
     # verificación geométrica (normal y espejada)
     # verifica con RANSAC dos veces: i normal contra j, y i espejada contra j
+    # se queda con los inliers
+    # los inliers son las parejas de puntos que coinciden con el movimiento ganador que encontró RANSAC
+    # los outliers son las que no coinciden: emparejamientos equivocados
     uf = UnionFind(n)
     vinculos = []
     for c, (i, j) in enumerate(sorted(cand)):
@@ -800,20 +803,22 @@ def cmd_duplicados(argv=None): # argumentos y atos de entrada
     ids = {r: k for k, r in enumerate(sorted(set(raices)))}
     grupos = np.array([ids[r] for r in raices])
 
-    # partición
+    # genera la nueva partición
+    # exactamente igual que en cmd_splits, pero con los grupos nuevos
     n_ho = max(2, round(1 / args.holdout))
     idx_cv, idx_ho = next(StratifiedGroupKFold(n_splits=n_ho, shuffle=True, random_state=args.seed)
                           .split(np.zeros(n), y, grupos))
     fold = np.full(n, -1, dtype=int)
-    sgkf = StratifiedGroupKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
+    sgkf = StratifiedGroupKFold(n_splits=args.folds, shuffle=True, random_state=args.seed) # 20% de hold-out
     for kf, (_, val) in enumerate(sgkf.split(np.zeros(len(idx_cv)), y[idx_cv], grupos[idx_cv])):
         fold[idx_cv[val]] = kf
     split = np.where(fold >= 0, "cv", "holdout")
 
-    por_grupo = defaultdict(set)
+    por_grupo = defaultdict(set) # 80% restante en 5 folds.
     for g, f in zip(grupos, fold):
         por_grupo[g].add(f)
     assert not [g for g, fs in por_grupo.items() if len(fs) > 1], "un grupo cruza folds"
+    # Verifica que ningún grupo esté en más de un fold
 
     with open(ROOT / args.salida, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -821,6 +826,8 @@ def cmd_duplicados(argv=None): # argumentos y atos de entrada
         for i, r in enumerate(filas):
             w.writerow([r["path"], int(y[i]), int(fold[i]), split[i], r["clase"], int(grupos[i]),
                         r.get("origen_kaggle", ""), r["grupo"]])
+            # Mismas columnas que splits.csv, con los grupos y folds nuevos
+            # más una columna grupo_phash con el grupo viejo
     REPORTES.mkdir(exist_ok=True)
     with open(REPORTES / "duplicados_pares.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -830,12 +837,18 @@ def cmd_duplicados(argv=None): # argumentos y atos de entrada
     fig = figura_grupos(rutas, grupos)
     if fig is not None:
         cv2.imwrite(str(REPORTES / "duplicados_ejemplos.png"), fig)
+    # grafica los grupos más grandes, una fila por grupo
+    # sirve para revisar a ojo que de verdad sean la misma ecografía
 
     # cuántos grupos pHash viejos quedaron repartidos entre folds en la partición anterior
     fold_viejo = np.array([int(r["fold"]) for r in filas])
     fuga_vieja = sum(1 for g in set(grupos) if len(set(fold_viejo[grupos == g])) > 1)
+    # Para cada grupo nuevo, mira en qué folds estaban sus imágenes en splits.csv
+    # Si estaban en más de uno, ese grupo tenía fugac (opias rotadas que pHash no había juntado y que quedaron separadas)
+    # justifica para qué sirvió todo esto
 
-    tam = Counter(grupos)
+    tam = Counter(grupos) # Igual que en splits
+    # tamaño de cada grupo, grupos con las dos etiquetas y el grupo más grande.
     mixtos = [g for g in tam if len(set(y[grupos == g])) > 1]
     mayor = max(tam.values())
     L = [f"Imágenes: {n} | grupos pHash (antes): {len(set(ph))} | grupos ahora: {len(tam)}",
