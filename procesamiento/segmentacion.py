@@ -54,30 +54,30 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def base_aspecto(entrada, tam=256, marcas=True, texto=True):
-    """Como preprocess.base, pero escala el lado mayor a `tam` y rellena con negro.
+    
+    # Redimensiona la imagen conservando las relaciones de 
+    # aspecto original mediante padding de los bordes negros
 
-    El relleno negro queda fuera del abanico, así que no entra en ninguna medida.
-    """
     rgb = leer(entrada) if isinstance(entrada, (str, Path)) else entrada
-    gris = quitar_marcas(rgb, quitar_texto=texto)[0] if marcas else a_gris(rgb)
-    gris = recortar_util(gris)
-    h, w = gris.shape
-    s = tam / max(h, w)
-    nh, nw = max(1, round(h * s)), max(1, round(w * s))
-    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC
+    gris = quitar_marcas(rgb, quitar_texto=texto)[0] if marcas else a_gris(rgb) #si hay marcas las elimina
+    gris = recortar_util(gris) #recorta el fondo sobrante alrededor del abanico
+    h, w = gris.shape 
+    s = tam / max(h, w) # Determina el factor de escala 
+    # basándose en la dimensión más larga
+    nh, nw = max(1, round(h * s)), max(1, round(w * s)) #Calcula las nuevas dimensiones 
+    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC #Elige si hay que ampliar o reducir la imagen
     r = cv2.resize(gris, (nw, nh), interpolation=interp)
-    out = np.zeros((tam, tam), np.uint8)
-    y0, x0 = (tam - nh) // 2, (tam - nw) // 2
+    out = np.zeros((tam, tam), np.uint8) #hace una matriz de ceros
+    y0, x0 = (tam - nh) // 2, (tam - nw) // 2 
+    # ubica la imagen en el centro de la matriz de ceros de 
+    # forma que queden en los bordes todos ceros
     out[y0:y0 + nh, x0:x0 + nw] = r
     return out
 
 
 def mascara_relleno(g, largo=21, rango_h=10, rango_v=25, area_min=150):
-    """Bandas horizontales que dejó la aumentación del dataset (relleno replicando el
-    borde). En esas bandas cada fila es casi constante a lo largo de x (rango
-    horizontal chico en una ventana de `largo` píxeles) pero cambia mucho de una fila
-    a otra (rango vertical grande). El interior de un folículo también es parejo,
-    pero en las dos direcciones, así que no cae acá."""
+    # se detecta y genera una máscara binaria para remover bandas horizontales de relleno sintético 
+    # introducidas por 
     kh = np.ones((1, largo), np.uint8)
     kv = np.ones((largo, 1), np.uint8)
     rh = cv2.dilate(g, kh).astype(np.int16) - cv2.erode(g, kh)
@@ -474,9 +474,7 @@ def modo_dice(args, kw):
     fig = defaultdict(dict)
     REPORTES.mkdir(exist_ok=True)
     for r in filas:
-        gt = cv2.imread(str(ROOT / r["mascara"]), cv2.IMREAD_UNCHANGED)
-        if gt is None:
-            raise SystemExit(f"No se pudo leer la máscara {r['mascara']}")
+        gt = leer_mascara(r)
         zl = int(r.get("zlado") or 0)
         zona, zrect = np.ones(gt.shape, bool), None
         if zl > 0:   # zona de evaluación: solo se mide dentro del cuadrado
@@ -946,10 +944,22 @@ def procesar_tecla(est, tecla, estirar):
     return None, estirar
 
 
+def leer_mascara(r):
+    """Máscara manual de una fila de mascaras.csv. Las imágenes sin folículos no tienen PNG:
+    se reconstruyen como una máscara vacía de tam x tam."""
+    if int(r["n_foliculos"]) == 0 and not (ROOT / r["mascara"]).is_file():
+        return np.zeros((int(r["tam"]), int(r["tam"])), np.uint8)
+    gt = cv2.imread(str(ROOT / r["mascara"]), cv2.IMREAD_UNCHANGED)
+    if gt is None:
+        raise SystemExit(f"No se pudo leer la máscara {r['mascara']}")
+    return gt
+
+
 def guardar(p, clase, est, conjunto, tam):
     destino = CARPETA / f"{clase}__{p.stem}.png"
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(destino), est.etiquetas())
+    if est.poligonos:   # sin folículos no se guarda el PNG: leer_mascara la reconstruye vacía
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(destino), est.etiquetas())
     nuevo = not INDICE.exists()
     with open(INDICE, "a", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
