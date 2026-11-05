@@ -370,7 +370,7 @@ def resumir_grupos(filas, claves):
 
 def fuente_de(path):
     """De dónde salió la imagen, según el prefijo del archivo: train_/test_ = Kaggle original;
-    cualquier otro prefijo (dv_, ...) = otra fuente. Sin prefijo: "otra"."""
+    cualquier otro prefijo = otra fuente. Sin prefijo: "otra"."""
     pref = Path(path).name.partition("_")[0].lower()
     if pref in ("train", "test"):
         return "kaggle"
@@ -378,7 +378,7 @@ def fuente_de(path):
 
 
 def _estratos(et, fu):
-    """Fuentes con las dos clases: [(índices PCOS, índices sanas)]."""
+    """Fuentes con las dos clases (PCOS, sanas)."""
     out = []
     for s_ in sorted(set(fu)):
         m = fu == s_
@@ -412,7 +412,7 @@ def auc_grupos(v, et, fu=None):
 
 def permutacion(v, et, fu=None, max_exacta=200000, n_mc=20000, seed=0):
     """p bilateral de la diferencia PCOS - sana PERMUTANDO LAS ETIQUETAS DENTRO DE CADA FUENTE.
-    Exacto si hay pocas asignaciones (4 vs 4 = 70); si no, Monte Carlo (n_mc permutaciones)."""
+    Exacto si hay pocas asignaciones (4 vs 4 = 70)."""
     fu = np.zeros(len(v), int) if fu is None else fu
     est = _estratos(et, fu)
     obs = abs(_estadistico(v, est, [e[0] for e in est]))
@@ -441,7 +441,7 @@ def permutacion(v, et, fu=None, max_exacta=200000, n_mc=20000, seed=0):
 
 def comparar(grupos, claves, fuentes=None, seed=0):
     """PCOS vs sanas con las medianas de grupo. `fuentes`: usar solo esas (None = todas, con
-    la comparación hecha DENTRO de cada fuente y combinada)."""
+    la comparación hecha dentro de cada fuente y combinada)."""
     gs = [g for g in grupos.values() if fuentes is None or g["fuente"] in fuentes]
     et = np.array([int(g["label"]) for g in gs])
     fu = np.array([g["fuente"] for g in gs])
