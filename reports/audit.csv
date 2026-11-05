@@ -2,7 +2,6 @@ path,clase,origen,ancho,alto,modo,bytes,brillo,desvio,frac_sat,frac_color
 data/clean/infected/dv_pco_1.jpg,infected,?,300,200,RGB,30216,76.59518432617188,54.74644470214844,0.0001,0.0
 data/clean/infected/dv_pco_10.jpg,infected,?,300,200,RGB,30092,69.18868255615234,45.02518844604492,0.0,0.0
 data/clean/infected/dv_pco_11.jpg,infected,?,300,200,RGB,29704,71.08039855957031,38.45909118652344,0.0,0.0
-data/clean/infected/dv_pco_12.jpg,infected,?,300,200,RGB,30588,87.66136932373047,44.16156768798828,0.0,0.0
 data/clean/infected/dv_pco_13.jpg,infected,?,300,200,RGB,29528,57.978782653808594,39.12541580200195,0.0,0.0
 data/clean/infected/dv_pco_14.jpg,infected,?,300,200,RGB,28833,67.05258178710938,42.99526596069336,0.0016666666666666668,0.0
 data/clean/infected/dv_pco_2.jpg,infected,?,300,200,RGB,29127,46.00506591796875,26.85928726196289,0.0,0.0
@@ -744,7 +743,6 @@ data/clean/notinfected/dv_normal_24.jpg,notinfected,?,300,200,RGB,31118,105.6027
 data/clean/notinfected/dv_normal_25.jpg,notinfected,?,300,200,RGB,29739,71.10794830322266,38.874507904052734,0.0,0.0
 data/clean/notinfected/dv_normal_26.jpg,notinfected,?,300,200,RGB,30433,79.82403564453125,43.03717041015625,1.6666666666666667e-05,0.0
 data/clean/notinfected/dv_normal_27.jpg,notinfected,?,300,200,RGB,29867,65.8418197631836,45.408748626708984,0.002116666666666667,0.0
-data/clean/notinfected/dv_normal_28.jpg,notinfected,?,300,200,RGB,30549,89.37068176269531,44.475521087646484,0.0,0.0
 data/clean/notinfected/dv_normal_29.jpg,notinfected,?,300,200,RGB,29670,55.342750549316406,36.828853607177734,0.00021666666666666666,0.0
 data/clean/notinfected/dv_normal_3.jpg,notinfected,?,300,200,RGB,30098,80.4521484375,38.7047004699707,0.0,0.0
 data/clean/notinfected/dv_normal_30.jpg,notinfected,?,300,200,RGB,29975,90.11563110351562,50.24532699584961,0.0005833333333333334,0.0

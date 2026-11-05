@@ -5,7 +5,7 @@ Pipeline de `preprocess(entrada)`:
   2. recortar el área útil (saca bordes negros)
   3. llevar a un tamaño común (INTER_AREA al achicar)  -> reduce pistas de resolución
   4. filtro de speckle (mediana, gaussiano, bilateral, nlm, lee, kuan, frost)
-  5. contraste (global, estirar)
+  5. contraste (ninguno o ecualización global)
 
 El tamaño común se aplica ANTES de filtrar: el speckle de una imagen de 984x848 y el de una
 de 300x300 no son comparables hasta que tienen la misma resolución.
@@ -693,58 +693,43 @@ def estadisticos(g):
     }
 
 
-def grupos_de_splits(claves, archivo="splits.csv"):
-    """(clase, nombre sin extensión) -> grupo, asocia cada imagen con su grupo en splits.csv"""
-    f = ROOT / archivo
-    if not f.exists():
-        return None
-    mapa = {}
-    with open(f, encoding="utf-8") as fh:
-        for r in csv.DictReader(fh):
-            mapa[(r["clase"], Path(r["path"]).stem)] = int(r["grupo"])
-    if not all(k in mapa for k in claves):
-        return None
-    return np.array([mapa[k] for k in claves])
+def auc_mann_whitney(x, y):
+    """AUC de una sola variable sin entrenar nada: estadístico U de Mann-Whitney
+    Es la probabilidad de que un caso positivo al azar tenga un valor mayor que uno negativo
+    (los empates cuentan 1/2). Se devuelve simetrizado: 0,5 = no separa, 1 = separa perfecto."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=bool)
+    n1, n0 = int(y.sum()), int((~y).sum())
+    if n1 == 0 or n0 == 0:
+        return float("nan")
+    rangos = stats.rankdata(x)
+    u = rangos[y].sum() - n1 * (n1 + 1) / 2
+    a = u / (n1 * n0)
+    return float(max(a, 1 - a))
 
 
-def control_atajos(filas, claves, seed, archivo="splits.csv"):
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.metrics import roc_auc_score
-    from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold, cross_val_predict
-
+def control_atajos(filas, claves):
+    """AUC de cada estadístico de bajo nivel por separado (histograma, gradiente, ruido).
+    Si alguno todavía separa las clases, el preprocesamiento no borró las pistas de la fuente.
+    No se entrena ningún modelo."""
     clases = sorted({k[0] for k in claves})
     if len(clases) != 2 or len(filas) < 50:
         return None
-    nombres = list(filas[0])
-    X = np.array([[f[n] for n in nombres] for f in filas])
-    y = np.array([k[0] == clases[1] for k in claves], dtype=int)
-    grupos = grupos_de_splits(claves, archivo)
-    rf = RandomForestClassifier(n_estimators=300, random_state=seed, n_jobs=-1)
-    if grupos is not None:
-        cv = StratifiedGroupKFold(5, shuffle=True, random_state=seed)
-        p = cross_val_predict(rf, X, y, cv=cv, groups=grupos, method="predict_proba")[:, 1]
-        cv_txt = f"CV agrupada por near-duplicados ({archivo})"
-    else:
-        cv = StratifiedKFold(5, shuffle=True, random_state=seed)
-        p = cross_val_predict(rf, X, y, cv=cv, method="predict_proba")[:, 1]
-        cv_txt = "CV sin agrupar (no se encontró splits.csv completo)"
-    solas = {}
-    for k, n in enumerate(nombres):
-        a = roc_auc_score(y, X[:, k])
-        solas[n] = max(a, 1 - a)
-    return roc_auc_score(y, p), solas, cv_txt
+    y = np.array([k[0] == clases[1] for k in claves])
+    return {n: auc_mann_whitney([f[n] for f in filas], y) for n in filas[0]}
 
 
 def cmd_procesar(argv=None):
     """Aplica preprocess() a todo data/clean -> data/pre (PNG sin pérdida) y corre un
 control de atajos sobre el resultado.
 
-El control entrena un Random Forest que NO ve la imagen sino estadísticos de bajo nivel
-(histograma, gradiente, ruido). Si todavía separa las clases, el preprocesamiento no alcanzó
-a borrar las pistas de la fuente. Usa los grupos de splits.csv si existe (CV sin fuga).
+El control calcula el AUC de cada estadístico de bajo nivel (histograma, gradiente, ruido)
+por separado, sin entrenar ningún modelo. Si alguno todavía separa las clases, el
+preprocesamiento no alcanzó a borrar las pistas de la fuente.
 
 Uso (desde cualquier carpeta):
     python preprocesamiento.py procesar --filtro mediana --contraste global --tam 256
+    python preprocesamiento.py procesar --filtro wiener3 --contraste ninguno --tam 256
 """
     ap = argparse.ArgumentParser()
     ap.add_argument("--filtro", default="wiener3")
@@ -754,8 +739,6 @@ Uso (desde cualquier carpeta):
     ap.add_argument("--sin-recorte", action="store_true")
     ap.add_argument("--sin-texto", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--splits", default="splits.csv",
-                    help="CSV con los grupos para la CV del control (en la raíz del repo)")
     args = ap.parse_args(argv)
 
     rutas = sorted(p for p in CLEAN.rglob("*") if p.is_file() and p.suffix.lower() in EXT)
@@ -786,18 +769,18 @@ Uso (desde cualquier carpeta):
          f"Procesadas: {len(filas)} de {len(rutas)} -> {PRE}"]
     if fallos:
         L.append(f"Fallaron {len(fallos)}: " + ", ".join(n for n, _ in fallos[:5]))
-    res = control_atajos(filas, claves, args.seed, args.splits)
-    if res is not None:
-        auc, solas, cv_txt = res
+    solas = control_atajos(filas, claves)
+    if solas is not None:
+        mejor, auc = max(solas.items(), key=lambda kv: kv[1])
         if auc >= 0.9:
-            v = "las clases siguen siendo separables por estadísticos de bajo nivel: hay pistas de la fuente"
+            v = "las clases siguen siendo separables por un estadístico de bajo nivel: hay pistas de la fuente"
         elif auc >= 0.65:
             v = "señal moderada: puede ser patología o fuente, no se puede distinguir con este control"
         else:
             v = "sin señal fuerte"
-        L += ["", f"Control de atajos tras preprocesar (solo estadísticos, sin ver el contenido): "
-                  f"AUC = {auc:.3f} -> {v}", f"  ({cv_txt})",
-              "  AUC por estadístico: " + ", ".join(f"{k}={v:.2f}" for k, v in
+        L += ["", f"Control de atajos tras preprocesar (cada estadístico solo, sin ver el contenido): "
+                  f"mejor = {mejor} (AUC = {auc:.3f}) -> {v}",
+              "  AUC por estadístico: " + ", ".join(f"{k}={x:.2f}" for k, x in
                                                     sorted(solas.items(), key=lambda kv: -kv[1]))]
     texto = "\n".join(L)
     print(texto)

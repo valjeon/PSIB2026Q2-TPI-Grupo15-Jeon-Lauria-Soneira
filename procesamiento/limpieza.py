@@ -22,7 +22,7 @@ import imagehash
 import numpy as np
 from PIL import Image, ImageStat
 from sklearn.model_selection import StratifiedGroupKFold
-
+from scipy import stats
 from preprocesamiento import a_gris, leer, recortar_util
 
 from pathlib import Path
@@ -294,33 +294,32 @@ def montaje(rutas, destino, cols=8, lado=180):
     hoja.save(destino, quality=90)
 
 
-def sesgo_por_metadatos(filas, seed, excluir=()):
-    """AUC de un clasificador que NO ve el contenido: solo tamaño, bytes, brillo, etc."""
-    try:
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.metrics import roc_auc_score
-        from sklearn.model_selection import StratifiedKFold, cross_val_predict
-    except ImportError:
-        return None
+def auc_mann_whitney(x, y):
+    """AUC de una sola variable sin entrenar nada: estadístico U de Mann-Whitney / (n1*n0).
+    Es la probabilidad de que un caso positivo al azar tenga un valor mayor que uno negativo
+    (los empates cuentan 1/2). Se devuelve simetrizado: 0,5 = no separa, 1 = separa perfecto."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=bool)
+    n1, n0 = int(y.sum()), int((~y).sum())
+    if n1 == 0 or n0 == 0:
+        return float("nan")
+    rangos = stats.rankdata(x)
+    u = rangos[y].sum() - n1 * (n1 + 1) / 2
+    a = u / (n1 * n0)
+    return float(max(a, 1 - a))
+
+
+def sesgo_por_metadatos(filas, excluir=()):
+    """AUC de cada metadato por separado (tamaño, bytes, brillo...), sin mirar el contenido.
+    Si alguno separa las clases, hay sesgo de adquisición. No se entrena ningún modelo."""
     clases = sorted({f["clase"] for f in filas})
     if len(clases) != 2 or len(filas) < 50:
         return None
     nombres = ["ancho", "alto", "aspecto", "bytes", "brillo", "desvio", "frac_sat", "frac_color"]
     X = np.array([[f["ancho"], f["alto"], f["ancho"] / f["alto"], f["bytes"], f["brillo"],
                    f["desvio"], f["frac_sat"], f["frac_color"]] for f in filas])
-    y = np.array([f["clase"] == clases[1] for f in filas], dtype=int)
-    keep = [k for k, nom in enumerate(nombres) if nom not in excluir]
-    nombres = [nombres[k] for k in keep]
-    X = X[:, keep]
-    rf = RandomForestClassifier(n_estimators=200, random_state=seed, n_jobs=-1)
-    p = cross_val_predict(rf, X, y, cv=StratifiedKFold(5, shuffle=True, random_state=seed),
-                          method="predict_proba")[:, 1]
-    # AUC de cada característica sola (simetrizado: 0,5 = no separa, 1 = separa perfecto)
-    solas = {}
-    for k, nom in enumerate(nombres):
-        a = roc_auc_score(y, X[:, k])
-        solas[nom] = max(a, 1 - a)
-    return roc_auc_score(y, p), solas
+    y = np.array([f["clase"] == clases[1] for f in filas])
+    return {nom: auc_mann_whitney(X[:, k], y) for k, nom in enumerate(nombres) if nom not in excluir}
 
 
 def cmd_auditar(argv=None):
@@ -390,15 +389,14 @@ color, marcas grabadas), el modelo puede aprender eso en lugar de la patología.
     if args.sin_color:
         L.insert(1, "MODO --sin-color: brillo, desvío y saturación sin píxeles coloreados; "
                     "frac_color fuera del chequeo de atajos.")
-    res = sesgo_por_metadatos(filas, args.seed, excluir=("frac_color",) if args.sin_color else ())
-    if res is not None:
-        auc, solas = res
-        veredicto = ("ALERTA: la clase se predice sin mirar el ovario; hay sesgo de adquisición"
+    solas = sesgo_por_metadatos(filas, excluir=("frac_color",) if args.sin_color else ())
+    if solas is not None:
+        mejor, auc = max(solas.items(), key=lambda kv: kv[1])
+        veredicto = ("ALERTA: la clase se separa sin mirar el ovario; hay sesgo de adquisición"
                      if auc >= 0.65 else "sin señal fuerte de sesgo")
-        L += [f"Chequeo de atajos: AUC solo con metadatos (tamaño, bytes, brillo, saturación, "
-              f"color) = {auc:.3f} -> {veredicto}",
-              "  (CV sin agrupar: los near-duplicados lo inflan un poco. ~0,5 es lo esperable.)",
-              "  AUC de cada característica sola (0,5 = no separa): " +
+        L += [f"Chequeo de atajos: mejor metadato solo = {mejor} (AUC = {auc:.3f}) -> {veredicto}",
+              "  (AUC = U de Mann-Whitney normalizado; imágenes sin agrupar, los near-duplicados pesan.)",
+              "  AUC de cada metadato solo (0,5 = no separa): " +
               ", ".join(f"{k}={v:.2f}" for k, v in sorted(solas.items(), key=lambda kv: -kv[1])), ""]
     L += ["Revisión visual pendiente (a mano):",
           f"  - {REPORTES}/muestra_azar_<clase>.jpg y muestra_marcas_<clase>.jpg",
