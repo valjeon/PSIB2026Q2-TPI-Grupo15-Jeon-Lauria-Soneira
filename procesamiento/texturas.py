@@ -1,49 +1,45 @@
-"""Características de folículos y estroma por imagen y por ecografía original (módulo de C).
+"""Calcula, a partir de la segmentación (segmentacion.py), 36 características para cada imagen
+agrupadas en: cantidad y tamaños de folículos, forma, distribución espacial, relación folículo-estroma,
+textura del estroma (GLCM) e interfaz (borde del folículo).
 
-Usa la segmentación de segmentacion.py (`segment_detalle`) y, para cada imagen, calcula:
-
-  Cantidad y tamaño   n_foliculos, densidad, área total/media/mediana/máx/mín, cv_area,
-                      dominancia_max (folículo mayor / área total de folículos: ~1 = un
-                      quiste grande, ~1/n = muchos parecidos), diámetros equivalentes
-                      relativos a sqrt(área del campo)
-  Folículo-estroma    frac_area_foliculos, ratio_area_fol_estroma, ratio_brillo_fol_estroma,
-                      contraste_michelson, cnr_fol_estroma, frac_area_rechazos
-  Estroma             brillo, desvío, entropía y textura GLCM (solo píxeles de estroma)
-  Forma               circularidad, excentricidad, solidez y relación de ejes medias
-  Distribución        distancia al vecino más cercano e índice de Clark-Evans (R < 1 =
-                      apiñados, R ~ 1 = al azar, R > 1 = parejos)
-  Interfaz            contraste, CNR y gradiente en el borde del folículo
+Flujo:
+  1. elegir_muestra: hasta --n-por-grupo imágenes de cada grupo de splits2.csv
+  2. segment_detalle (segmentacion.py) -> caracteristicas(): una fila por imagen
+  3. resumir_grupos: mediana e IQR de cada característica dentro de cada grupo
+  4. comparar: PCOS vs sanas con las medianas de grupo (AUC + permutación), por fuente de dónde se extrajo la imagen
+  5. CSV, figuras y caracteristicas_resumen.txt en reports/
 
 Definiciones:
-  campo (ROI)  = abanico de la ecografía que devuelve la segmentación (NO es el ovario).
-  estroma      = campo - folículos - un anillo de `margen_estroma` px alrededor de cada
-                 folículo (el borde del folículo es difuso y contaminaría el estroma).
-  Todo lo que es proporción (cociente, fracción, relativo a sqrt(área del campo)) no
-  depende del zoom; los conteos y las áreas en píxeles sí dependen del recorte.
+  campo (ROI)  = porción de la ecografía que devuelve la segmentación.
+  estroma      = campo - folículos - un anillo del borde de cada folículo.
 
-IMPORTANTE: las 1.699 imágenes son aumentaciones (zoom, rotación, recorte) de solo 8
-ecografías (columna `grupo` de splits2.csv: 4 PCOS y 4 sanas). Las filas por imagen son
-réplicas, no muestras independientes: el tamaño efectivo es 8. Por eso el script también
-resume por grupo (mediana y rango intercuartílico entre las variantes) y compara PCOS vs
-sanas con las medianas de los 8 grupos (AUC de grupos y prueba exacta de permutación sobre
-las 70 asignaciones posibles). Es descriptivo: con 4 vs 4 el p mínimo posible es 2/70 = 0,029
-y con ~35 características ninguna sobrevive a corrección por comparaciones múltiples.
+Datos (extraídos de dos fuentes distintas):
+  Kaggle            1.699 imágenes que son aumentaciones (zoom, rotación, recorte)
+                         de solo 8 ecografías: 4 PCOS y 4 sanas.
+  Dataverse         52 imágenes de 50 ecografías.
+Cada ecografía original es un `grupo` en splits2.csv. Las variantes de un grupo no son
+muestras independientes, así que PCOS vs sanas se compara con una mediana por grupo, y
+dentro de cada fuente, ya que puede haber diferencias de tamaño y encuadre entre ellas.
 
-Varias fuentes: la fuente sale del prefijo del archivo (train_/test_ = Kaggle; dv_ = otra). La
-comparación se hace dentro de cada fuente y combinada (permutando etiquetas dentro de cada
-fuente), y se marca si la diferencia va en el mismo sentido en todas. Así el sesgo de fuente
-(tamaño, encuadre) no se mezcla con la patología.
+Salidas (reports/):
+caracteristicas_imagenes.csv        una fila por imagen
+caracteristicas_grupos.csv          mediana e IQR por grupo
+caracteristicas_comparacion.csv     PCOS vs sanas por fuente
+caracteristicas_resumen.txt         igual que caracteristicas_comparacion.csv pero en formato de texto,
+                                    con la explicación de cada columna
+caracteristicas_montaje.png         una ecografía representativa por grupo (folículos en rojo,
+                                    estroma en verde); si se quiere omitir se escribe --sin-montaje
+figuras_caracteristicas/            carpeta (solo con --imagenes N): un PNG por imagen, hasta N figuras 
+                                    por grupo. Cada PNG tiene tres paneles: contornos numerados | 
+                                    estroma y folículos | mediciones.
+                                    Se vacía al empezar cada corrida.
 
-Salidas (reports/): caracteristicas_imagenes.csv, caracteristicas_grupos.csv,
-caracteristicas_comparacion.csv,
-caracteristicas_resumen.txt, caracteristicas_montaje.png (una ecografía representativa por
-grupo, con folículos en rojo y estroma en verde) y, con --imagenes N, figuras_caracteristicas/
-con una figura por imagen: contornos numerados | estroma y folículos | mediciones.
-
-Uso (desde cualquier carpeta):
+Uso (por defecto: multiotsu + wiener3 + sin contraste, hasta 40 imágenes por grupo)
     python procesamiento/texturas.py --n-por-grupo 40 --imagenes 3
     python procesamiento/texturas.py --n-por-grupo 0        # todas las imágenes
-    python procesamiento/texturas.py --metodo chanvese --filtro frost7 --contraste ninguno
+    python procesamiento/texturas.py --metodo chanvese --filtro frost7 --contraste ninguno #otra segmentación,
+                                                                                            se puede usar para evaluar
+                                                                                            sensibilidad.
 """
 from collections import defaultdict
 from pathlib import Path
@@ -52,6 +48,7 @@ import csv
 import itertools
 import math
 import random
+import shutil
 import time
 
 import cv2
@@ -61,75 +58,106 @@ from skimage.feature import graycomatrix, graycoprops
 
 from segmentacion import metricas_foliculos, segment_detalle
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent      # raíz del repo
 if ROOT.name == "procesamiento":
     ROOT = ROOT.parent
-REPORTES = ROOT / "reports"
-NAN = float("nan")
+REPORTES = ROOT / "reports"                 # carpeta donde se guardan las salidas
+NAN = float("nan")                          # lo que no está definido
+FONT = cv2.FONT_HERSHEY_SIMPLEX             # fuente de los textos en las figuras
 
 
 # ---------------------------------------------------------------- utilidades
 def _dilatar(mask, r):
+    """Agranda la máscara r píxeles en todas las direcciones para poder definir el estroma,
+    con un anillo de seguridad en los bordes de los folículos."""
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
     return cv2.dilate(mask.astype(np.uint8), k).astype(bool)
 
 
 def _entropia(vals, bins=64):
+    """Mide qué tan heterogéneo es el estroma.
+    0 --> muy homogéneo; log2(bins) = 6 --> muy heterogéneo."""
     h, _ = np.histogram(vals, bins=bins, range=(0, 256))
     p = h[h > 0] / h.sum()
     return float(-(p * np.log2(p)).sum())
 
 
+def _circularidad(r):
+    """4·pi·área / perímetro².
+    1 --> círculo perfecto; menor a 1 --> más irregular; NaN si no hay perímetro."""
+    return 4 * np.pi * r.area / r.perimeter ** 2 if r.perimeter > 0 else NAN
+
+
 def glcm_estroma(img, estroma, niveles=16, distancias=(1, 2),
                  angulos=(0, np.pi / 4, np.pi / 2, 3 * np.pi / 4), min_pix=400):
-    """Propiedades de Haralick calculadas SOLO con pares de píxeles que están ambos en el
-    estroma. skimage no acepta máscaras: los píxeles fuera del estroma van al nivel 0 y
-    se descartan de la matriz antes de normalizar. Promedio sobre distancias y ángulos."""
+    """Textura del estroma con GLCM. Los pares de píxeles comparados sólo pertenecen
+    al estroma, por lo que sino pertenecen a él, se descartan.
+    El resultado de la función es el promedio sobre las 2 distancias (1,2) y
+    los 4 ángulos (0, 45, 90, 135 grados). Las atributos calculados son: contraste,
+    disimilitud, homogeneidad, energía y correlación.
+    Con menos de `min_pix` píxeles devuelve NaN"""
     props = ("contrast", "dissimilarity", "homogeneity", "energy", "correlation")
     if estroma.sum() < min_pix:
         return {p: NAN for p in props}
+    # cuantizar: 256 grises --> 16 niveles, sino la matriz queda demasiado grande.
     q = np.zeros(img.shape, np.uint8)
     q[estroma] = 1 + np.minimum(img[estroma].astype(np.int32) * niveles // 256, niveles - 1)
+    # matriz de conteos
+    # [1:, 1:] descarta la fila y la columna del nivel 0 --> quedan solo pares estroma-estroma
     g = graycomatrix(q, list(distancias), list(angulos), levels=niveles + 1,
                      symmetric=True, normed=False)[1:, 1:].astype(np.float64)
-    tot = g.sum(axis=(0, 1), keepdims=True)
+    # normalizar para que queden valores de probabilidad (suma = 1).
+    tot = g.sum(axis=(0, 1), keepdims=True)     # total de pares por distancia y ángulo
     if (tot == 0).all():
         return {p: NAN for p in props}
     g = g / np.maximum(tot, 1)
+    # silenciar warnings de NaN y división por cero (si algún par de distancia-ángulo no tiene pares estroma-estroma)
     with np.errstate(invalid="ignore", divide="ignore"):
         return {p: float(np.nanmean(graycoprops(g, p))) for p in props}
 
 
 # ---------------------------------------------------------------- por imagen
 def caracteristicas(d, margen_estroma=3):
-    """Dict de características a partir del resultado de segment_detalle()."""
+    """Características de una imagen a partir de segment_detalle(). Devuelve un dict;
+    lo que no está definido queda en NaN.
+
+    Conteo      n_foliculos, area_roi_px, densidad_x1e4px, frac_area_rechazos
+    Tamaño      area_total/media/mediana/max/min_px, area_cv, dominancia_max,
+                diam_eq_rel_medio/max (relativos a sqrt(área del campo))
+    Forma       circularidad, excentricidad, solidez y ratio_ejes (medias)
+    Distrib.    dist_vecino_rel, clark_evans_R
+    Fol-estr.   frac_area_foliculos, ratio_area_fol_estroma, brillo_foliculos,
+                ratio_brillo_fol_estroma, contraste_michelson, cnr_fol_estroma
+    Estroma     brillo_estroma, estroma_std, estroma_entropia, glcm_* (5 propiedades)
+    Interfaz    contraste, CNR y gradiente en el borde (medias de metricas_foliculos)
+    """
+    # d = salida de segment_detalle (segmentacion.py).
+    #   base = sin filtrar ; pre = filtrada ; rech = regiones oscuras descartadas por la segmentación.
     roi, mask, lab, rech = d["roi"], d["mask"], d["labels"], d["rechazos"]
     base, pre = d["base"], d["pre"]
     a_roi = float(roi.sum())
-    estroma = roi & ~_dilatar(mask, margen_estroma) if mask.any() else roi.copy()
+    estroma = roi & ~_dilatar(mask, margen_estroma) 
     a_fol, a_est = float(mask.sum()), float(estroma.sum())
-    escala = np.sqrt(a_roi)
+    escala = np.sqrt(a_roi)     # longitud típica de la ROI
 
-    out = dict(n_foliculos=int(lab.max()), area_roi_px=a_roi,
-               densidad_x1e4px=1e4 * int(lab.max()) / a_roi,
+    n = int(lab.max())  # cantidad de folículos
+    out = dict(n_foliculos=n, area_roi_px=a_roi,
+               densidad_x1e4px=1e4 * n / a_roi,            # folículos cada 10.000 px de ROI
                frac_area_foliculos=a_fol / a_roi,
                ratio_area_fol_estroma=a_fol / a_est if a_est > 0 else NAN,
                frac_area_rechazos=float(rech.sum()) / a_roi)
 
-    # ---- estroma
+    # ---- estroma (brillos normalizados a 0-1)
     if a_est > 0:
         pe = pre[estroma].astype(np.float32)
         out.update(brillo_estroma=float(base[estroma].mean()) / 255,
                    estroma_std=float(pe.std()) / 255,
                    estroma_entropia=_entropia(pre[estroma]))
-        g = glcm_estroma(pre, estroma)
-        out.update({f"glcm_{k}": v for k, v in g.items()})
     else:
-        out.update(brillo_estroma=NAN, estroma_std=NAN, estroma_entropia=NAN,
-                   glcm_contrast=NAN, glcm_dissimilarity=NAN, glcm_homogeneity=NAN,
-                   glcm_energy=NAN, glcm_correlation=NAN)
+        out.update(brillo_estroma=NAN, estroma_std=NAN, estroma_entropia=NAN)
+    out.update({f"glcm_{k}": v for k, v in glcm_estroma(pre, estroma).items()})
 
-    props = measure.regionprops(lab)
+    props = measure.regionprops(lab)        # propiedades de cada folículo
     if not props:  # sin folículos: lo que no está definido queda en NaN
         out.update(area_total_px=0.0, area_media_px=NAN, area_mediana_px=NAN, area_max_px=NAN,
                    area_min_px=NAN, area_cv=NAN, dominancia_max=NAN, diam_eq_rel_medio=NAN,
@@ -143,25 +171,27 @@ def caracteristicas(d, margen_estroma=3):
 
     # ---- tamaño y forma
     a = np.array([r.area for r in props], float)
-    deq = np.sqrt(4 * a / np.pi)
-    circ = [4 * np.pi * r.area / r.perimeter ** 2 for r in props if r.perimeter > 0]
+    deq = np.sqrt(4 * a / np.pi)        # diámetro del círculo equivalente (de igual área)
+    circ = [c for c in map(_circularidad, props) if np.isfinite(c)]
     out.update(
         area_total_px=float(a.sum()), area_media_px=float(a.mean()),
         area_mediana_px=float(np.median(a)), area_max_px=float(a.max()), area_min_px=float(a.min()),
-        area_cv=float(a.std() / a.mean()), dominancia_max=float(a.max() / a.sum()),
+        area_cv=float(a.std() / a.mean()),      # coef. de variación: 0 --> todos el mismo tamaño
+        dominancia_max=float(a.max() / a.sum()),
         diam_eq_rel_medio=float(deq.mean() / escala), diam_eq_rel_max=float(deq.max() / escala),
         circularidad_media=float(np.mean(circ)) if circ else NAN,
-        excentricidad_media=float(np.mean([r.eccentricity for r in props])),
+        excentricidad_media=float(np.mean([r.eccentricity for r in props])), # 0 --> círculo ; 1 --> alargado
         solidez_media=float(np.mean([r.solidity for r in props])),
         ratio_ejes_medio=float(np.mean([r.axis_minor_length / max(r.axis_major_length, 1e-6)
-                                        for r in props])))
+                                        for r in props])))          # eje menor / eje mayor: 1 --> redondo
 
-    # ---- distribución espacial
+    # ---- distribución espacial (se necesitan por lo menos 2 folículos)
     if len(props) >= 2:
         c = np.array([r.centroid for r in props])
-        dd = np.sqrt(((c[:, None] - c[None]) ** 2).sum(-1))
+        dd = np.sqrt(((c[:, None] - c[None]) ** 2).sum(-1))     # distancias entre todos los centroides
         np.fill_diagonal(dd, np.inf)
-        dmin = float(dd.min(1).mean())
+        dmin = float(dd.min(1).mean())                          # distancia media al vecino más cercano
+        # Clark-Evans: observada / esperada si estuviera al azar en la misma ROI (0.5 * sqrt(area / n))
         out.update(dist_vecino_rel=dmin / escala,
                    clark_evans_R=dmin / (0.5 * np.sqrt(a_roi / len(props))))
     else:
@@ -173,13 +203,16 @@ def caracteristicas(d, margen_estroma=3):
     if a_est > 0:
         be = out["brillo_estroma"]
         out["ratio_brillo_fol_estroma"] = bf / be if be > 0 else NAN
+        # Michelson: (Ie - If)/(Ie + If)
         out["contraste_michelson"] = (be - bf) / (be + bf + 1e-6)
-        pf, pe = pre[mask].astype(np.float32), pre[estroma].astype(np.float32)
+        # CNR: diferencia de medias en unidades de desvío
+        pf = pre[mask].astype(np.float32)
         out["cnr_fol_estroma"] = float((pe.mean() - pf.mean()) / np.sqrt(pe.var() + pf.var() + 1e-6))
     else:
         out.update(ratio_brillo_fol_estroma=NAN, contraste_michelson=NAN, cnr_fol_estroma=NAN)
 
-    # ---- interfaz (de segmentacion.metricas_foliculos)
+    # ---- interfaz: segmentacio.metricas_foliculos mide cada folículo contra un anillo alrededor,
+    # se promedia entre folículos
     fol = metricas_foliculos(d)
     for nombre, clave in (("contraste_interfaz_medio", "contraste_interfaz"),
                           ("cnr_interfaz_medio", "cnr_interfaz"),
@@ -189,32 +222,34 @@ def caracteristicas(d, margen_estroma=3):
 
 
 # ---------------------------------------------------------------- imágenes de resultado
-FONT = cv2.FONT_HERSHEY_SIMPLEX  # solo ASCII: las fuentes de OpenCV no dibujan tildes
-
-
 def _f(v, nd=2):
+    """Pasa el número como texto en figuras y tablas. NaN o infinito --> '-'."""
     return "-" if v is None or not np.isfinite(v) else f"{v:.{nd}f}"
 
 
 def _zoom_img(img, z):
+    """Amplía una imagen z veces, solo para figuras."""
     return cv2.resize(img, None, fx=z, fy=z, interpolation=cv2.INTER_CUBIC)
 
 
 def _zoom_mask(m, z):
+    """Amplía una máscara z veces."""
     return np.repeat(np.repeat(m, z, axis=0), z, axis=1)
 
 
 def panel_foliculos(d, z=2):
-    """Imagen base ampliada con el contorno del campo (celeste) y cada folículo numerado."""
+    """Imagen base ampliada z veces, con el contorno de la ROI (celeste) y los folículos numerados (rojo)."""
+    # se pasa la imagen a RGB para dibujar en color
     img = _zoom_img(cv2.cvtColor(d["base"], cv2.COLOR_GRAY2RGB), z)
     roi = _zoom_mask(d["roi"], z).astype(np.uint8)
     cr, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    cv2.drawContours(img, cr, -1, (0, 160, 255), 1)
+    cv2.drawContours(img, cr, -1, (0, 160, 255), 1)        # ROI
     labz = _zoom_mask(d["labels"], z)
-    for r in measure.regionprops(labz):
+    for r in measure.regionprops(labz):                     # un folículo por loop
         cs, _ = cv2.findContours((labz == r.label).astype(np.uint8), cv2.RETR_EXTERNAL,
                                  cv2.CHAIN_APPROX_NONE)
-        cv2.drawContours(img, cs, -1, (255, 40, 40), 1)
+        cv2.drawContours(img, cs, -1, (255, 40, 40), 1)     # folículo
+        # número del folículo centrado en el centroide
         txt = str(r.label)
         (w, h), _ = cv2.getTextSize(txt, FONT, 0.4, 1)
         cy, cx = r.centroid
@@ -224,18 +259,18 @@ def panel_foliculos(d, z=2):
 
 
 def panel_estroma(d, margen_estroma=3, z=2):
-    """Imagen base con el estroma en verde, los folículos en rojo y, con contorno amarillo,
-    las zonas oscuras que la segmentación descartó (sombras, estroma oscuro)."""
+    """Imagen base con el estroma (verde), folículos (rojo) y zonas oscuras que la segmentación descartó (amarillo)."""
     img = _zoom_img(cv2.cvtColor(d["base"], cv2.COLOR_GRAY2RGB), z).astype(np.float32)
     roi, mask = _zoom_mask(d["roi"], z), _zoom_mask(d["mask"], z)
-    estroma = roi & ~_dilatar(mask, margen_estroma * z) if mask.any() else roi
+    # se usa el mismo estroma que en caracteristicas()
+    estroma = roi & ~_dilatar(mask, margen_estroma * z)
     img[estroma] = 0.65 * img[estroma] + 0.35 * np.array([0, 200, 0])
     img[mask] = 0.45 * img[mask] + 0.55 * np.array([255, 0, 0])
     out = img.astype(np.uint8)
     rech = _zoom_mask(d["rechazos"], z)
     if rech.any():
         cr, _ = cv2.findContours(rech.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        cv2.drawContours(out, cr, -1, (255, 220, 0), 1)
+        cv2.drawContours(out, cr, -1, (255, 220, 0), 1)     # descartados
     return out
 
 
@@ -258,12 +293,12 @@ def panel_texto(d, c, titulo, lado):
          "", "id   area(px)  circ.   (rojo en la imagen)"]
     props = measure.regionprops(d["labels"])
     ancho_fila, y = 17, 22
-    libres = (lado - y - ancho_fila * len(L)) // ancho_fila
-    for r in props[:max(libres, 0)]:
-        circ = 4 * np.pi * r.area / r.perimeter ** 2 if r.perimeter > 0 else float("nan")
+    libres = max((lado - y - ancho_fila * len(L)) // ancho_fila, 0)
+    for r in props[:libres]:
+        circ = _circularidad(r)
         L.append(f"{r.label:<4d} {r.area:8.0f}  {_f(circ)}")
-    if len(props) > max(libres, 0):
-        L.append(f"... (+{len(props) - max(libres, 0)} mas)")
+    if len(props) > libres:
+        L.append(f"... (+{len(props) - libres} mas)")
     for s in L:
         cv2.putText(p, s, (10, y), FONT, 0.42, (235, 235, 235), 1, cv2.LINE_AA)
         y += ancho_fila
@@ -271,13 +306,14 @@ def panel_texto(d, c, titulo, lado):
 
 
 def figura_imagen(d, c, titulo, margen_estroma=3, z=2):
-    """Tres paneles: contornos numerados | estroma (verde) y folículos (rojo) | mediciones."""
+    """Figura de figuras_caracteristicas/: tres paneles: contornos numerados | estroma (verde) y folículos (rojo) | mediciones."""
     a = panel_foliculos(d, z)
     return np.hstack([a, panel_estroma(d, margen_estroma, z), panel_texto(d, c, titulo, a.shape[0])])
 
 
 def montaje_grupos(items, cols=4, pie=40):
-    """items: lista de (panel RGB cuadrado, [líneas de pie]). Devuelve la hoja RGB."""
+    """Arma una grilla de 'cols' columnas con los paneles y un pie de texto debajo de cada uno.
+    Items: lista de (panel RGB cuadrado, [líneas de texto])."""
     lado = items[0][0].shape[0]
     filas = -(-len(items) // cols)
     hoja = np.full((filas * (lado + pie), cols * lado, 3), 20, np.uint8)
@@ -289,6 +325,25 @@ def montaje_grupos(items, cols=4, pie=40):
             cv2.putText(hoja, s, (x0 + 6, y0 + lado + 16 + 16 * j), FONT, 0.42, (235, 235, 235), 1,
                         cv2.LINE_AA)
     return hoja
+
+
+def hacer_montaje(filas, grupos, args):
+    """caracteristicas_montaje.png: una imagen representativa por grupo (la de fracción de
+    área folicular más cercana a la mediana del grupo)."""
+    items = []
+    # orden: PCOS primero, después por número de grupo
+    for g in sorted(grupos.values(), key=lambda g: (-int(g["label"]), int(g["grupo"]))):
+        fs = [x for x in filas if x["grupo"] == g["grupo"]]
+        rep = min(fs, key=lambda x: abs(x["frac_area_foliculos"] - g["frac_area_foliculos_med"]))
+        # se vuelve a segmentar porque no se guardan los `d` de cada imagen para ahorrar memoria
+        d = segment_detalle(resolver_imagen(rep["path"], rep["clase"]), filtro=args.filtro,
+                            contraste=args.contraste, metodo=args.metodo)
+        items.append((panel_estroma(d, args.margen_estroma, 1),         # z=1 --> no se amplía
+                      [f"g{g['grupo']} {rep['clase']}  n={rep['n_foliculos']}",
+                       f"fol/campo {_f(rep['frac_area_foliculos'], 3)}  "
+                       f"fol/estroma {_f(rep['ratio_area_fol_estroma'], 3)}"]))
+    cv2.imwrite(str(REPORTES / "caracteristicas_montaje.png"),
+                cv2.cvtColor(montaje_grupos(items), cv2.COLOR_RGB2BGR))  # guarda en BGR
 
 
 # ---------------------------------------------------------------- por grupo
@@ -322,7 +377,7 @@ def fuente_de(path):
     return pref if "_" in Path(path).name else "otra"
 
 
-def _estratos(v, et, fu):
+def _estratos(et, fu):
     """Fuentes con las dos clases: [(índices PCOS, índices sanas)]."""
     out = []
     for s_ in sorted(set(fu)):
@@ -349,7 +404,7 @@ def auc_grupos(v, et, fu=None):
     (no se comparan PCOS de una fuente con sanas de otra)."""
     fu = np.zeros(len(v), int) if fu is None else fu
     aucs, pesos = [], []
-    for ip, ineg in _estratos(v, et, fu):
+    for ip, ineg in _estratos(et, fu):
         aucs.append(np.mean([(p > n) + 0.5 * (p == n) for p in v[ip] for n in v[ineg]]))
         pesos.append(len(ip) * len(ineg))
     return float(np.average(aucs, weights=pesos))
@@ -359,7 +414,7 @@ def permutacion(v, et, fu=None, max_exacta=200000, n_mc=20000, seed=0):
     """p bilateral de la diferencia PCOS - sana PERMUTANDO LAS ETIQUETAS DENTRO DE CADA FUENTE.
     Exacto si hay pocas asignaciones (4 vs 4 = 70); si no, Monte Carlo (n_mc permutaciones)."""
     fu = np.zeros(len(v), int) if fu is None else fu
-    est = _estratos(v, et, fu)
+    est = _estratos(et, fu)
     obs = abs(_estadistico(v, est, [e[0] for e in est]))
     total = 1
     for ip, ineg in est:
@@ -390,7 +445,7 @@ def comparar(grupos, claves, fuentes=None, seed=0):
     gs = [g for g in grupos.values() if fuentes is None or g["fuente"] in fuentes]
     et = np.array([int(g["label"]) for g in gs])
     fu = np.array([g["fuente"] for g in gs])
-    if not _estratos(None, et, fu):
+    if not _estratos(et, fu):
         return []
     filas = []
     for k in claves:
@@ -400,7 +455,7 @@ def comparar(grupos, claves, fuentes=None, seed=0):
         iqr = np.array([g[f"{k}_iqr"] for g in gs], float)
         rango = v.max() - v.min()
         # signo de la diferencia en cada fuente: ¿coincide entre fuentes?
-        signos = {np.sign(np.median(v[ip]) - np.median(v[ineg])) for ip, ineg in _estratos(v, et, fu)}
+        signos = {np.sign(np.median(v[ip]) - np.median(v[ineg])) for ip, ineg in _estratos(et, fu)}
         filas.append(dict(
             caracteristica=k, med_pcos=float(np.median(v[et == 1])), med_sana=float(np.median(v[et == 0])),
             auc_grupos=auc_grupos(v, et, fu), p_perm=permutacion(v, et, fu, seed=seed),
@@ -420,6 +475,31 @@ def resolver_imagen(path_rel, clase):
     return raw if raw.exists() else None
 
 
+def _guardar_csv(ruta, filas):
+    """Escribe una lista de dicts como CSV (columnas = claves del primero). Vacío si no hay filas."""
+    with open(ruta, "w", newline="", encoding="utf-8") as f:
+        if filas:
+            w = csv.DictWriter(f, fieldnames=list(filas[0]))
+            w.writeheader()
+            w.writerows(filas)
+
+
+def elegir_muestra(ruta_splits, n_por_grupo, seed):
+    """Lee el CSV de splits y toma hasta `n_por_grupo` imágenes al azar de cada grupo
+    (0 = todas). Ordena antes de sortear para que con la misma semilla salgan las mismas."""
+    with open(ruta_splits, encoding="utf-8") as f:
+        filas_csv = list(csv.DictReader(f))
+    por_grupo = {}
+    for r in filas_csv:
+        por_grupo.setdefault(r["grupo"], []).append(r)
+    rng = random.Random(seed)
+    muestra = []
+    for g, rs in sorted(por_grupo.items(), key=lambda kv: int(kv[0])):
+        rs = sorted(rs, key=lambda r: r["path"])
+        muestra += rs if n_por_grupo <= 0 else rng.sample(rs, min(n_por_grupo, len(rs)))
+    return muestra
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--splits", default="splits2.csv", help="CSV con path, label, clase, grupo")
@@ -434,20 +514,13 @@ def main():
     ap.add_argument("--sin-montaje", action="store_true", help="no generar el montaje por grupo")
     args = ap.parse_args()
 
-    with open(ROOT / args.splits, encoding="utf-8") as f:
-        filas_csv = list(csv.DictReader(f))
-    por_grupo = {}
-    for r in filas_csv:
-        por_grupo.setdefault(r["grupo"], []).append(r)
-    rng = random.Random(args.seed)
-    muestra = []
-    for g, rs in sorted(por_grupo.items(), key=lambda kv: int(kv[0])):
-        rs = sorted(rs, key=lambda r: r["path"])
-        muestra += rs if args.n_por_grupo <= 0 else rng.sample(rs, min(args.n_por_grupo, len(rs)))
+    muestra = elegir_muestra(ROOT / args.splits, args.n_por_grupo, args.seed)
 
     filas, claves, t0, saltadas = [], None, time.time(), 0
     guardadas = defaultdict(int)
     carpeta_fig = REPORTES / "figuras_caracteristicas"
+    if args.imagenes > 0 and carpeta_fig.exists():
+        shutil.rmtree(carpeta_fig)
     for i, r in enumerate(muestra, 1):
         ruta = resolver_imagen(r["path"], r["clase"])
         if ruta is None:
@@ -471,30 +544,12 @@ def main():
         raise SystemExit("No encontré ninguna imagen (ni en data/clean ni en data/raw).")
 
     REPORTES.mkdir(exist_ok=True)
-    with open(REPORTES / "caracteristicas_imagenes.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(filas[0]))
-        w.writeheader()
-        w.writerows(filas)
+    _guardar_csv(REPORTES / "caracteristicas_imagenes.csv", filas)
     grupos = resumir_grupos(filas, claves)
-    with open(REPORTES / "caracteristicas_grupos.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(next(iter(grupos.values()))))
-        w.writeheader()
-        w.writerows(grupos.values())
+    _guardar_csv(REPORTES / "caracteristicas_grupos.csv", list(grupos.values()))
 
     if not args.sin_montaje:
-        # una imagen representativa por grupo: la que está más cerca de la mediana del grupo
-        items = []
-        for g in sorted(grupos.values(), key=lambda g: (-int(g["label"]), int(g["grupo"]))):
-            fs = [x for x in filas if x["grupo"] == g["grupo"]]
-            rep = min(fs, key=lambda x: abs(x["frac_area_foliculos"] - g["frac_area_foliculos_med"]))
-            d = segment_detalle(resolver_imagen(rep["path"], rep["clase"]), filtro=args.filtro,
-                                contraste=args.contraste, metodo=args.metodo)
-            items.append((panel_estroma(d, args.margen_estroma, 1),
-                          [f"g{g['grupo']} {rep['clase']}  n={rep['n_foliculos']}",
-                           f"fol/campo {_f(rep['frac_area_foliculos'], 3)}  "
-                           f"fol/estroma {_f(rep['ratio_area_fol_estroma'], 3)}"]))
-        cv2.imwrite(str(REPORTES / "caracteristicas_montaje.png"),
-                    cv2.cvtColor(montaje_grupos(items), cv2.COLOR_RGB2BGR))
+        hacer_montaje(filas, grupos, args)
 
     fuentes = sorted({g["fuente"] for g in grupos.values()})
     L = [f"Imágenes procesadas: {len(filas)} de {len(muestra)} ({saltadas} sin archivo) | "
@@ -521,11 +576,7 @@ def main():
                      f"{c['auc_grupos']:7.2f}{c['p_perm']:9.4f}{_f(c['inestabilidad']):>10s}"
                      + (f"{c['mismo_sentido']:>15s}" if nombre not in fuentes else ""))
             comp_csv.append(dict(fuente=nombre.split(" ")[0], **c))
-    with open(REPORTES / "caracteristicas_comparacion.csv", "w", newline="", encoding="utf-8") as f:
-        if comp_csv:
-            w = csv.DictWriter(f, fieldnames=list(comp_csv[0]))
-            w.writeheader()
-            w.writerows(comp_csv)
+    _guardar_csv(REPORTES / "caracteristicas_comparacion.csv", comp_csv)
     L += ["", "AUC: sobre medianas de grupo, calculado dentro de cada fuente (1 = todas las PCOS por encima",
           "  de todas las sanas, 0,5 = nada). Con varias fuentes es el promedio de los AUC de cada una.",
           "p perm.: permutación de etiquetas dentro de cada fuente (exacta si hay pocas asignaciones;",

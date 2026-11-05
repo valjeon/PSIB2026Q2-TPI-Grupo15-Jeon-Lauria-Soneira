@@ -3,9 +3,8 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .vscode/
+.DS_Store
 data/
 reports/*.jpg
 reports/*.png
 splits_*.csv
-mascaras/
-mascaras_dv/
