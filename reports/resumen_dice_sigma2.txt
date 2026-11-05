@@ -1,0 +1,38 @@
+Imágenes: 16 (conjunto ajuste; 6 sin folículos en la máscara manual) | métodos: otsu multiotsu chanvese adaptativo | parámetros: por defecto
+
+combinación                        Dice    ±DE mediana      P      R     F1    |Δn|  sesgo n  s/img
+multiotsu+wiener5+ninguno         0.625  0.371   0.761  0.562  0.383  0.456    2.06    -0.94   0.02
+chanvese+frost7+ninguno           0.618  0.350   0.631  0.552  0.340  0.421    2.25    -1.12   0.57
+chanvese+ninguno+ninguno          0.594  0.352   0.545  0.500  0.532  0.515    1.81    +0.19   0.56
+multiotsu+gauss1.0+ninguno        0.567  0.387   0.618  0.529  0.383  0.444    1.81    -0.81   0.02
+chanvese+gauss1.0+ninguno         0.556  0.367   0.513  0.512  0.447  0.477    1.88    -0.38   0.56
+multiotsu+ninguno+ninguno         0.510  0.379   0.473  0.512  0.468  0.489    2.12    -0.25   0.02
+multiotsu+mediana5+ninguno        0.505  0.390   0.408  0.500  0.383  0.434    2.06    -0.69   0.02
+otsu+ninguno+ninguno              0.490  0.363   0.460  0.542  0.553  0.547    2.06    +0.06   0.02
+multiotsu+mediana5+estirar        0.313  0.330   0.236  0.344  0.468  0.396    2.44    +1.06   0.02
+
+Dice: por imagen, unión de folículos vs. máscara manual. P/R/F1: por folículo, sumando
+todas las imágenes; un folículo manual está 'encontrado' si algún segmentado lo cubre con
+IoU >= 0.5 (y al revés para la precisión). |Δn|: error absoluto medio del conteo;
+sesgo n: automático - manual (+ = de más).
+
+FINALISTAS (selección automática; 4 de 9)
+  Regla 1: Dice mayor que el del predictor vacío (0.375 = 6 de 16 zonas sin folículos).
+  Regla 2: ninguna otra la supera en Dice Y en F1 por folículo, las dos por al menos 0.02.
+  multiotsu+wiener5+ninguno  chanvese+frost7+ninguno  chanvese+ninguno+ninguno  otsu+ninguno+ninguno
+  Descartadas por regla 1: 1 | por regla 2: 4
+  Para el paso siguiente: --combos multiotsu+wiener5+ninguno chanvese+frost7+ninguno chanvese+ninguno+ninguno otsu+ninguno+ninguno
+
+Friedman entre las 9 combinaciones (Dice por imagen): chi2 = 7.2, p = 0.51
+Wilcoxon pareado de 'multiotsu+wiener5+ninguno' contra cada una (p con Bonferroni, 8 comparaciones):
+  multiotsu+wiener5+ninguno vs chanvese+frost7+ninguno          p = 1
+  multiotsu+wiener5+ninguno vs chanvese+ninguno+ninguno         p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+gauss1.0+ninguno       p = 1
+  multiotsu+wiener5+ninguno vs chanvese+gauss1.0+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+ninguno+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+mediana5+ninguno       p = 1
+  multiotsu+wiener5+ninguno vs otsu+ninguno+ninguno             p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+mediana5+estirar       p = 0.304
+
+No elegir solo por Dice: mirar reports/seg_dice_overlays.png (verde = manual, rojo =
+automática). Con pocas imágenes las diferencias chicas entre combinaciones son ruido.

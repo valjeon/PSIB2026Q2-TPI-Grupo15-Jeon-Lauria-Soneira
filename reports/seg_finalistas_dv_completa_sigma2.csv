@@ -1,0 +1,49 @@
+combinacion,dice,f1,finalista,motivo
+chanvese+wiener5+estirar,0.6944,0.7865,1,
+multiotsu+wiener3+estirar,0.6918,0.6889,1,
+multiotsu+gauss1.0+estirar,0.6795,0.7033,1,
+otsu+wiener3+estirar,0.6648,0.6957,0,dominada por chanvese+wiener5+estirar
+otsu+wiener5+estirar,0.6646,0.7312,0,dominada por chanvese+wiener5+estirar
+otsu+frost7+estirar,0.6596,0.7253,0,dominada por chanvese+wiener5+estirar
+adaptativo+frost7+estirar,0.6553,0.7083,0,dominada por chanvese+wiener5+estirar
+multiotsu+ninguno+estirar,0.6539,0.7143,0,dominada por chanvese+wiener5+estirar
+adaptativo+mediana5+estirar,0.6427,0.6346,0,dominada por chanvese+wiener5+estirar
+adaptativo+wiener5+estirar,0.6396,0.64,0,dominada por chanvese+wiener5+estirar
+adaptativo+wiener3+estirar,0.632,0.6465,0,dominada por chanvese+wiener5+estirar
+adaptativo+gauss1.0+estirar,0.6309,0.6465,0,dominada por chanvese+wiener5+estirar
+otsu+wiener5+ninguno,0.6297,0.7273,0,dominada por chanvese+wiener5+estirar
+chanvese+frost7+estirar,0.6236,0.7356,0,dominada por chanvese+wiener5+estirar
+chanvese+mediana5+estirar,0.6206,0.7333,0,dominada por chanvese+wiener5+estirar
+multiotsu+frost7+estirar,0.6154,0.6889,0,dominada por chanvese+wiener5+estirar
+multiotsu+wiener5+estirar,0.6143,0.6742,0,dominada por chanvese+wiener5+estirar
+chanvese+wiener3+estirar,0.6106,0.7381,0,dominada por chanvese+wiener5+estirar
+multiotsu+mediana5+estirar,0.6083,0.6667,0,dominada por chanvese+wiener5+estirar
+otsu+wiener3+ninguno,0.6013,0.6933,0,dominada por chanvese+wiener5+estirar
+otsu+gauss1.0+estirar,0.5991,0.6522,0,dominada por chanvese+wiener5+estirar
+otsu+frost7+ninguno,0.5979,0.7568,0,dominada por chanvese+wiener5+estirar
+adaptativo+ninguno+estirar,0.597,0.6522,0,dominada por chanvese+wiener5+estirar
+otsu+gauss1.0+ninguno,0.5968,0.6933,0,dominada por chanvese+wiener5+estirar
+chanvese+gauss1.0+estirar,0.5925,0.7143,0,dominada por chanvese+wiener5+estirar
+otsu+mediana5+estirar,0.591,0.6452,0,dominada por chanvese+wiener5+estirar
+multiotsu+ninguno+ninguno,0.5848,0.7027,0,dominada por chanvese+wiener5+estirar
+multiotsu+mediana5+ninguno,0.5782,0.7324,0,dominada por chanvese+wiener5+estirar
+multiotsu+wiener3+ninguno,0.5686,0.6933,0,dominada por chanvese+wiener5+estirar
+otsu+mediana5+ninguno,0.5678,0.6842,0,dominada por chanvese+wiener5+estirar
+chanvese+wiener3+ninguno,0.5659,0.7429,0,dominada por chanvese+wiener5+estirar
+multiotsu+gauss1.0+ninguno,0.565,0.6757,0,dominada por chanvese+wiener5+estirar
+multiotsu+wiener5+ninguno,0.5574,0.7123,0,dominada por chanvese+wiener5+estirar
+chanvese+ninguno+ninguno,0.5527,0.6866,0,dominada por chanvese+wiener5+estirar
+chanvese+wiener5+ninguno,0.5524,0.7246,0,dominada por chanvese+wiener5+estirar
+chanvese+gauss1.0+ninguno,0.5513,0.7059,0,dominada por chanvese+wiener5+estirar
+chanvese+ninguno+estirar,0.5484,0.6316,0,dominada por chanvese+wiener5+estirar
+chanvese+mediana5+ninguno,0.5469,0.7246,0,dominada por chanvese+wiener5+estirar
+otsu+ninguno+estirar,0.546,0.65,0,dominada por chanvese+wiener5+estirar
+multiotsu+frost7+ninguno,0.544,0.6849,0,dominada por chanvese+wiener5+estirar
+chanvese+frost7+ninguno,0.5379,0.697,0,dominada por chanvese+wiener5+estirar
+otsu+ninguno+ninguno,0.5364,0.6849,0,dominada por chanvese+wiener5+estirar
+adaptativo+gauss1.0+ninguno,0.4251,0.5067,0,dominada por chanvese+wiener5+estirar
+adaptativo+wiener3+ninguno,0.4056,0.4865,0,dominada por chanvese+wiener5+estirar
+adaptativo+mediana5+ninguno,0.4026,0.5135,0,dominada por chanvese+wiener5+estirar
+adaptativo+wiener5+ninguno,0.4023,0.4658,0,dominada por chanvese+wiener5+estirar
+adaptativo+frost7+ninguno,0.383,0.5,0,dominada por chanvese+wiener5+estirar
+adaptativo+ninguno+ninguno,0.3724,0.5588,0,dominada por chanvese+wiener5+estirar

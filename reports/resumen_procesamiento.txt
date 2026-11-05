@@ -1,6 +1,5 @@
-Config: filtro=lee contraste=clahe tam=256 marcas=True recorte=True texto=True
-Procesadas: 1699 de 1699 -> /Users/somi/Documents/PSIB/PSIB_Grupo15_PCOS/data/pre
+Config: filtro=wiener3 contraste=ninguno tam=256 marcas=True recorte=True texto=True
+Procesadas: 1751 de 1751 -> /Users/molauria/PSIB_Grupo15_PCOS/data/pre
 
-Control de atajos tras preprocesar (solo estadísticos, sin ver el contenido): AUC = 0.949 -> las clases siguen siendo separables por estadísticos de bajo nivel: hay pistas de la fuente
-  (CV agrupada por near-duplicados (splits_u14.csv))
-  AUC por estadístico: desvio=0.93, frac_clara=0.90, lap_var=0.84, entropia=0.84, asimetria=0.81, curtosis=0.74, media=0.70, frac_oscura=0.55, grad_medio=0.51
+Control de atajos tras preprocesar (cada estadístico solo, sin ver el contenido): mejor = asimetria (AUC = 0.915) -> las clases siguen siendo separables por un estadístico de bajo nivel: hay pistas de la fuente
+  AUC por estadístico: asimetria=0.92, desvio=0.87, entropia=0.78, frac_clara=0.71, frac_oscura=0.70, lap_var=0.62, media=0.60, grad_medio=0.56, curtosis=0.55

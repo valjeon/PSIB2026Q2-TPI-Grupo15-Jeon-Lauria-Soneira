@@ -1,0 +1,116 @@
+Imágenes: 16 (conjunto ajuste; 6 sin folículos en la máscara manual) | métodos: otsu multiotsu chanvese adaptativo | parámetros: por defecto
+
+combinación                        Dice    ±DE mediana      P      R     F1    |Δn|  sesgo n  s/img
+multiotsu+wiener5+ninguno         0.625  0.371   0.761  0.562  0.383  0.456    2.06    -0.94   0.02
+chanvese+frost7+ninguno           0.618  0.350   0.631  0.552  0.340  0.421    2.25    -1.12   0.56
+chanvese+wiener5+ninguno          0.604  0.359   0.551  0.500  0.383  0.434    1.81    -0.69   0.55
+otsu+frost7+ninguno               0.599  0.365   0.601  0.485  0.340  0.400    2.38    -0.88   0.03
+chanvese+mediana5+ninguno         0.598  0.370   0.596  0.500  0.383  0.434    1.94    -0.69   0.55
+chanvese+ninguno+ninguno          0.594  0.352   0.545  0.500  0.532  0.515    1.81    +0.19   0.56
+otsu+gauss1.0+ninguno             0.582  0.355   0.627  0.458  0.468  0.463    2.19    +0.06   0.02
+otsu+mediana5+ninguno             0.580  0.364   0.583  0.479  0.489  0.484    2.44    +0.06   0.02
+chanvese+wiener3+ninguno          0.572  0.360   0.511  0.511  0.489  0.500    2.12    -0.12   0.56
+multiotsu+gauss1.0+ninguno        0.567  0.387   0.618  0.529  0.383  0.444    1.81    -0.81   0.02
+multiotsu+frost7+ninguno          0.566  0.399   0.638  0.483  0.298  0.368    2.38    -1.12   0.03
+multiotsu+wiener3+ninguno         0.561  0.377   0.476  0.595  0.468  0.524    1.88    -0.62   0.02
+chanvese+gauss1.0+ninguno         0.556  0.367   0.513  0.512  0.447  0.477    1.88    -0.38   0.55
+adaptativo+frost7+ninguno         0.522  0.442   0.572  0.385  0.213  0.274    2.56    -1.31   0.03
+multiotsu+ninguno+ninguno         0.510  0.379   0.473  0.512  0.468  0.489    2.12    -0.25   0.02
+multiotsu+mediana5+ninguno        0.505  0.390   0.408  0.500  0.383  0.434    2.06    -0.69   0.02
+otsu+ninguno+ninguno              0.490  0.363   0.460  0.542  0.553  0.547    2.06    +0.06   0.03
+otsu+wiener5+ninguno              0.488  0.372   0.449  0.465  0.426  0.444    2.75    -0.25   0.02
+multiotsu+ninguno+estirar         0.431  0.372   0.391  0.400  0.468  0.431    2.50    +0.50   0.02
+multiotsu+wiener5+estirar         0.424  0.374   0.380  0.373  0.404  0.388    2.62    +0.25   0.02
+otsu+wiener3+ninguno              0.396  0.355   0.315  0.520  0.553  0.536    2.44    +0.19   0.02
+chanvese+wiener5+estirar          0.356  0.340   0.373  0.367  0.468  0.411    3.06    +0.81   0.56
+otsu+ninguno+estirar              0.342  0.324   0.351  0.444  0.596  0.509    2.62    +1.00   0.02
+adaptativo+ninguno+ninguno        0.325  0.388   0.156  0.357  0.319  0.337    2.81    -0.31   0.02
+multiotsu+mediana5+estirar        0.313  0.330   0.236  0.344  0.468  0.396    2.44    +1.06   0.02
+adaptativo+wiener3+ninguno        0.310  0.389   0.139  0.361  0.277  0.313    2.69    -0.69   0.02
+chanvese+frost7+estirar           0.295  0.306   0.298  0.284  0.404  0.333    3.25    +1.25   0.57
+chanvese+ninguno+estirar          0.292  0.311   0.257  0.324  0.511  0.397    2.69    +1.69   0.56
+chanvese+wiener3+estirar          0.286  0.301   0.309  0.291  0.489  0.365    3.25    +2.00   0.56
+adaptativo+mediana5+ninguno       0.279  0.403   0.000  0.364  0.255  0.300    2.75    -0.88   0.02
+multiotsu+frost7+estirar          0.276  0.319   0.165  0.302  0.404  0.345    3.50    +1.00   0.03
+adaptativo+gauss1.0+ninguno       0.276  0.402   0.000  0.333  0.234  0.275    2.75    -0.88   0.02
+adaptativo+wiener5+ninguno        0.267  0.407   0.000  0.379  0.234  0.289    2.75    -1.12   0.02
+otsu+gauss1.0+estirar             0.248  0.262   0.201  0.338  0.489  0.400    3.06    +1.31   0.02
+multiotsu+wiener3+estirar         0.247  0.275   0.083  0.386  0.468  0.423    2.88    +0.62   0.02
+otsu+mediana5+estirar             0.247  0.254   0.218  0.359  0.596  0.448    3.31    +1.94   0.02
+otsu+wiener5+estirar              0.241  0.256   0.183  0.364  0.511  0.425    2.94    +1.19   0.02
+otsu+wiener3+estirar              0.236  0.253   0.192  0.382  0.553  0.452    3.31    +1.31   0.02
+otsu+frost7+estirar               0.235  0.260   0.139  0.328  0.447  0.378    3.31    +1.06   0.03
+adaptativo+mediana5+estirar       0.229  0.264   0.067  0.312  0.511  0.387    3.38    +1.88   0.03
+multiotsu+gauss1.0+estirar        0.229  0.263   0.082  0.299  0.426  0.351    3.12    +1.25   0.02
+chanvese+gauss1.0+estirar         0.228  0.259   0.128  0.304  0.447  0.362    2.88    +1.38   0.56
+adaptativo+wiener3+estirar        0.224  0.261   0.067  0.303  0.489  0.374    3.31    +1.81   0.03
+adaptativo+ninguno+estirar        0.223  0.258   0.069  0.300  0.511  0.378    3.31    +2.06   0.03
+adaptativo+wiener5+estirar        0.222  0.264   0.070  0.293  0.468  0.361    3.38    +1.75   0.03
+chanvese+mediana5+estirar         0.221  0.250   0.113  0.312  0.532  0.394    3.31    +2.06   0.56
+adaptativo+gauss1.0+estirar       0.218  0.255   0.072  0.284  0.489  0.359    3.62    +2.12   0.03
+adaptativo+frost7+estirar         0.212  0.253   0.072  0.247  0.426  0.312    4.00    +2.12   0.04
+
+Dice: por imagen, unión de folículos vs. máscara manual. P/R/F1: por folículo, sumando
+todas las imágenes; un folículo manual está 'encontrado' si algún segmentado lo cubre con
+IoU >= 0.5 (y al revés para la precisión). |Δn|: error absoluto medio del conteo;
+sesgo n: automático - manual (+ = de más).
+
+FINALISTAS (selección automática; 9 de 48)
+  Regla 1: Dice mayor que el del predictor vacío (0.375 = 6 de 16 zonas sin folículos).
+  Regla 2: ninguna otra la supera en Dice Y en F1 por folículo, las dos por al menos 0.02.
+  multiotsu+wiener5+ninguno  chanvese+frost7+ninguno  chanvese+ninguno+ninguno  otsu+gauss1.0+ninguno  otsu+mediana5+ninguno  chanvese+wiener3+ninguno  multiotsu+wiener3+ninguno  otsu+ninguno+ninguno  otsu+wiener3+ninguno
+  Descartadas por regla 1: 27 | por regla 2: 12
+  Para el paso siguiente: --combos multiotsu+wiener5+ninguno chanvese+frost7+ninguno chanvese+ninguno+ninguno otsu+gauss1.0+ninguno otsu+mediana5+ninguno chanvese+wiener3+ninguno multiotsu+wiener3+ninguno otsu+ninguno+ninguno otsu+wiener3+ninguno
+
+Friedman entre las 48 combinaciones (Dice por imagen): chi2 = 131.8, p = 5.7e-10
+Wilcoxon pareado de 'multiotsu+wiener5+ninguno' contra cada una (p con Bonferroni, 47 comparaciones):
+  multiotsu+wiener5+ninguno vs chanvese+frost7+ninguno          p = 1
+  multiotsu+wiener5+ninguno vs chanvese+wiener5+ninguno         p = 1
+  multiotsu+wiener5+ninguno vs otsu+frost7+ninguno              p = 1
+  multiotsu+wiener5+ninguno vs chanvese+mediana5+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs chanvese+ninguno+ninguno         p = 1
+  multiotsu+wiener5+ninguno vs otsu+gauss1.0+ninguno            p = 1
+  multiotsu+wiener5+ninguno vs otsu+mediana5+ninguno            p = 1
+  multiotsu+wiener5+ninguno vs chanvese+wiener3+ninguno         p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+gauss1.0+ninguno       p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+frost7+ninguno         p = 0.813
+  multiotsu+wiener5+ninguno vs multiotsu+wiener3+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs chanvese+gauss1.0+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+frost7+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+ninguno+ninguno        p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+mediana5+ninguno       p = 1
+  multiotsu+wiener5+ninguno vs otsu+ninguno+ninguno             p = 1
+  multiotsu+wiener5+ninguno vs otsu+wiener5+ninguno             p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+ninguno+estirar        p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+wiener5+estirar        p = 1
+  multiotsu+wiener5+ninguno vs otsu+wiener3+ninguno             p = 1
+  multiotsu+wiener5+ninguno vs chanvese+wiener5+estirar         p = 1
+  multiotsu+wiener5+ninguno vs otsu+ninguno+estirar             p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+ninguno+ninguno       p = 0.205
+  multiotsu+wiener5+ninguno vs multiotsu+mediana5+estirar       p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+wiener3+ninguno       p = 0.27
+  multiotsu+wiener5+ninguno vs chanvese+frost7+estirar          p = 1
+  multiotsu+wiener5+ninguno vs chanvese+ninguno+estirar         p = 1
+  multiotsu+wiener5+ninguno vs chanvese+wiener3+estirar         p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+mediana5+ninguno      p = 0.205
+  multiotsu+wiener5+ninguno vs multiotsu+frost7+estirar         p = 0.207
+  multiotsu+wiener5+ninguno vs adaptativo+gauss1.0+ninguno      p = 0.27
+  multiotsu+wiener5+ninguno vs adaptativo+wiener5+ninguno       p = 0.205
+  multiotsu+wiener5+ninguno vs otsu+gauss1.0+estirar            p = 1
+  multiotsu+wiener5+ninguno vs multiotsu+wiener3+estirar        p = 1
+  multiotsu+wiener5+ninguno vs otsu+mediana5+estirar            p = 1
+  multiotsu+wiener5+ninguno vs otsu+wiener5+estirar             p = 1
+  multiotsu+wiener5+ninguno vs otsu+wiener3+estirar             p = 1
+  multiotsu+wiener5+ninguno vs otsu+frost7+estirar              p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+mediana5+estirar      p = 0.826
+  multiotsu+wiener5+ninguno vs multiotsu+gauss1.0+estirar       p = 0.978
+  multiotsu+wiener5+ninguno vs chanvese+gauss1.0+estirar        p = 0.978
+  multiotsu+wiener5+ninguno vs adaptativo+wiener3+estirar       p = 0.582
+  multiotsu+wiener5+ninguno vs adaptativo+ninguno+estirar       p = 0.694
+  multiotsu+wiener5+ninguno vs adaptativo+wiener5+estirar       p = 0.582
+  multiotsu+wiener5+ninguno vs chanvese+mediana5+estirar        p = 1
+  multiotsu+wiener5+ninguno vs adaptativo+gauss1.0+estirar      p = 0.485
+  multiotsu+wiener5+ninguno vs adaptativo+frost7+estirar        p = 0.276
+
+No elegir solo por Dice: mirar reports/seg_dice_overlays.png (verde = manual, rojo =
+automática). Con pocas imágenes las diferencias chicas entre combinaciones son ruido.

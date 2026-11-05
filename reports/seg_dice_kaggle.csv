@@ -1,0 +1,17 @@
+imagen,clase,metodo,filtro,contraste,dice,jaccard,n_gt,n_pred,tp_gt,tp_pred
+data/clean/notinfected/test_img_0_3575.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,0,3,0,0
+data/clean/notinfected/test_img_0_3456.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,1,1,0,0
+data/clean/notinfected/test_img_0_9621.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,0,5,0,0
+data/clean/notinfected/test_img_0_2928.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,1,3,0,0
+data/clean/infected/test_img_0_155.jpg,infected,multiotsu,mediana5,estirar,0.6429,0.4737,2,4,1,1
+data/clean/infected/test_img_0_9818.jpg,infected,multiotsu,mediana5,estirar,0.3059,0.1806,5,14,3,3
+data/clean/notinfected/test_img_0_6047.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,0,1,0,0
+data/clean/notinfected/test_img_0_7996.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,0,2,0,0
+data/clean/infected/test_img_0_1889.jpg,infected,multiotsu,mediana5,estirar,0.3629,0.2217,5,5,2,2
+data/clean/infected/test_img_0_2986.jpg,infected,multiotsu,mediana5,estirar,0.1654,0.0902,8,3,1,1
+data/clean/notinfected/test_img2.png,notinfected,multiotsu,mediana5,estirar,1.0,1.0,0,0,0,0
+data/clean/infected/test_img_0_8689.jpg,infected,multiotsu,mediana5,estirar,0.7755,0.6334,9,9,7,7
+data/clean/infected/test_img_0_2704.jpg,infected,multiotsu,mediana5,estirar,0.7002,0.5387,2,4,2,2
+data/clean/infected/test_img_0_8849.jpg,infected,multiotsu,mediana5,estirar,0.5403,0.3702,6,3,2,2
+data/clean/notinfected/test_img_0_635.jpg,notinfected,multiotsu,mediana5,estirar,0.0,0.0,0,2,0,0
+data/clean/infected/test_img_0_3592.jpg,infected,multiotsu,mediana5,estirar,0.5135,0.3455,8,5,4,4

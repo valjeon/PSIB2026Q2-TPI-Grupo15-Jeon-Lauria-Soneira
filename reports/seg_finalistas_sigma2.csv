@@ -1,0 +1,10 @@
+combinacion,dice,f1,finalista,motivo
+multiotsu+wiener5+ninguno,0.6249,0.4557,1,
+chanvese+frost7+ninguno,0.6183,0.4211,1,
+chanvese+ninguno+ninguno,0.5937,0.5155,1,
+multiotsu+gauss1.0+ninguno,0.567,0.4444,0,dominada por chanvese+ninguno+ninguno
+chanvese+gauss1.0+ninguno,0.5562,0.4773,0,dominada por chanvese+ninguno+ninguno
+multiotsu+ninguno+ninguno,0.5095,0.4889,0,dominada por chanvese+ninguno+ninguno
+multiotsu+mediana5+ninguno,0.5054,0.4337,0,dominada por multiotsu+wiener5+ninguno
+otsu+ninguno+ninguno,0.4903,0.5474,1,
+multiotsu+mediana5+estirar,0.3129,0.3964,0,no supera al predictor vacío

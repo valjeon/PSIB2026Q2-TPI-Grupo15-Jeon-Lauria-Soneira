@@ -1,5 +1,5 @@
 Umbral pHash: 4 | desvío mínimo: 2.0
-Imágenes en /Users/somi/Documents/PSIB/PSIB_Grupo15_PCOS/data/all: 3856
+Imágenes en /Users/molauria/PSIB_Grupo15_PCOS/data/all: 3908
 Excluidas: 2157
   no se pudo abrir: 10
   casi vacías: 0
@@ -8,10 +8,10 @@ Excluidas: 2157
       test-test: 224
       test-train: 1923
   conflicto de clase: 0 imágenes en 0 grupos
-Conservadas: 1699
-  infected: 711
-  notinfected: 988
-  por origen: test=1698, train=1
-Modos de color: RGB=1697, L=1, P=1
+Conservadas: 1751
+  infected: 724
+  notinfected: 1027
+  por origen: ?=52, test=1698, train=1
+Modos de color: RGB=1749, L=1, P=1
 Tamaños más frecuentes: 984x848=320, 850x578=248, 630x436=246, 300x300=176, 315x160=174
-Tamaños distintos: 11
+Tamaños distintos: 12

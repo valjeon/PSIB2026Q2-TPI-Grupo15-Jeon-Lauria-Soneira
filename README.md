@@ -11,12 +11,29 @@ con sus clases infected / non-infected. El dataset original está en
 
 - `data/raw/`: dataset original, tal cual se descargó
 - `data/all/`: train y test unificados (se genera con el script)
-- `merge_data.py`: script de unificación
+- `procesamiento/limpieza.py unir`: unifica train y test (y otros datasets) en `data/all/`
 
-## Orden en que se corren los archivos:
-python merge_data.py
-python clean_data.py
-python audit_data.py
-python make_splits.py
-python comparar_preprocesamiento.py
-python procesar_dataset.py
+## Código (`procesamiento/`)
+
+Cuatro archivos, cada uno con comandos (`python procesamiento/<archivo>.py <comando> -h`):
+
+| Archivo | Comandos |
+|---|---|
+| `limpieza.py` | `unir`, `limpiar`, `auditar`, `splits`, `duplicados` |
+| `preprocesamiento.py` | `comparar`, `anotar-rois`, `elegir-filtro`, `procesar` |
+| `segmentacion.py` | `comparar`, `ver-casos`, `anotar-mascaras` |
+| `texturas.py` | (sin comandos) características de folículos y estroma |
+
+## Orden en que se corren
+
+```
+python procesamiento/limpieza.py unir     # con otro dataset: --extra data/raw_dataverse --fuente dv
+python procesamiento/limpieza.py limpiar
+python procesamiento/limpieza.py auditar
+python procesamiento/limpieza.py splits
+python procesamiento/limpieza.py duplicados
+python procesamiento/preprocesamiento.py comparar
+python procesamiento/preprocesamiento.py procesar
+python procesamiento/segmentacion.py comparar --splits splits2.csv
+python procesamiento/texturas.py --imagenes 3
+```

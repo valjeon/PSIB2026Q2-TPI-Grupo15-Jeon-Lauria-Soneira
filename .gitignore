@@ -7,3 +7,5 @@ data/
 reports/*.jpg
 reports/*.png
 splits_*.csv
+mascaras/
+mascaras_dv/
