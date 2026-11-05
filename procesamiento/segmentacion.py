@@ -1,20 +1,5 @@
-"""Segmentación de folículos (módulo de B). Usa el preprocesamiento de preprocesamiento.py.
-
-Pipeline de `segment(entrada)`:
-  1. imagen base: sin marcas, recortada y a tamaño común, CONSERVANDO el aspecto
-     (relleno negro). Estirar a cuadrado deforma los folículos y falsea
-     circularidad, excentricidad y ejes, que después usa C.
-  2. máscara del abanico (zona con señal). Sin ella, Otsu toma el fondo negro y
-     la sombra del transductor como si fueran folículos.
-  3. filtro de speckle + contraste (los mismos nombres que en preprocesamiento.py);
-     el estiramiento se calcula solo dentro del abanico.
-  4. umbral: los folículos son la clase más oscura (Otsu de 3 clases por defecto,
-     Otsu clásico o Chan-Vese morfológico para comparar).
-  5. morfología: apertura, cierre, relleno de huecos.
-  6. descarta lo que toca el borde del abanico.
-  7. watershed sobre la transformada de distancia (separa folículos pegados).
-  8. filtra regiones por área, circularidad y solidez.
-
+"""
+USO
 Como módulo:
     from segmentacion import segment, segment_detalle, resumen_imagen
     mask = segment("data/clean/infected/x.jpg", filtro="wiener3", contraste="ninguno")
@@ -38,7 +23,6 @@ import numpy as np
 from scipy import ndimage as ndi
 from scipy import stats
 from skimage import feature, filters, measure, segmentation
-
 from preprocesamiento import (a_gris, armar_muestra, contrastar, filtrar, hoja, leer,
                               quitar_marcas, recortar_util)
 
@@ -54,30 +38,30 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def base_aspecto(entrada, tam=256, marcas=True, texto=True):
-    """Como preprocess.base, pero escala el lado mayor a `tam` y rellena con negro.
+    
+    # Redimensiona la imagen conservando las relaciones de 
+    # aspecto original mediante padding de los bordes negros
 
-    El relleno negro queda fuera del abanico, así que no entra en ninguna medida.
-    """
     rgb = leer(entrada) if isinstance(entrada, (str, Path)) else entrada
-    gris = quitar_marcas(rgb, quitar_texto=texto)[0] if marcas else a_gris(rgb)
-    gris = recortar_util(gris)
-    h, w = gris.shape
-    s = tam / max(h, w)
-    nh, nw = max(1, round(h * s)), max(1, round(w * s))
-    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC
+    gris = quitar_marcas(rgb, quitar_texto=texto)[0] if marcas else a_gris(rgb) #si hay marcas las elimina
+    gris = recortar_util(gris) #recorta el fondo sobrante alrededor del abanico
+    h, w = gris.shape 
+    s = tam / max(h, w) # Determina el factor de escala 
+    # basándose en la dimensión más larga
+    nh, nw = max(1, round(h * s)), max(1, round(w * s)) #Calcula las nuevas dimensiones 
+    interp = cv2.INTER_AREA if s < 1 else cv2.INTER_CUBIC #Elige si hay que ampliar o reducir la imagen
     r = cv2.resize(gris, (nw, nh), interpolation=interp)
-    out = np.zeros((tam, tam), np.uint8)
-    y0, x0 = (tam - nh) // 2, (tam - nw) // 2
+    out = np.zeros((tam, tam), np.uint8) #hace una matriz de ceros
+    y0, x0 = (tam - nh) // 2, (tam - nw) // 2 
+    # ubica la imagen en el centro de la matriz de ceros de 
+    # forma que queden en los bordes todos ceros
     out[y0:y0 + nh, x0:x0 + nw] = r
     return out
 
 
 def mascara_relleno(g, largo=21, rango_h=10, rango_v=25, area_min=150):
-    """Bandas horizontales que dejó la aumentación del dataset (relleno replicando el
-    borde). En esas bandas cada fila es casi constante a lo largo de x (rango
-    horizontal chico en una ventana de `largo` píxeles) pero cambia mucho de una fila
-    a otra (rango vertical grande). El interior de un folículo también es parejo,
-    pero en las dos direcciones, así que no cae acá."""
+    # se detecta y genera una máscara binaria para remover bandas horizontales de relleno sintético 
+    # introducidas por el data augmentation del dataset de Kaggle
     kh = np.ones((1, largo), np.uint8)
     kv = np.ones((largo, 1), np.uint8)
     rh = cv2.dilate(g, kh).astype(np.int16) - cv2.erode(g, kh)
@@ -85,74 +69,80 @@ def mascara_relleno(g, largo=21, rango_h=10, rango_v=25, area_min=150):
     m = ((rh <= rango_h) & (rv >= rango_v)).astype(np.uint8)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
     m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 9), np.uint8))
-    m = _componentes_grandes(m, area_min)
+    m = _componentes_grandes(m, area_min) 
     return cv2.dilate(m.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool)
 
 
 def _componentes_grandes(binaria, area_min):
     n, lab, stats, _ = cv2.connectedComponentsWithStats(binaria.astype(np.uint8))
-    ids = np.where(stats[:, cv2.CC_STAT_AREA] >= area_min)[0]
-    return np.isin(lab, ids[ids > 0])
+    # se buscan bloques contiguos de píxeles blancos
+    ids = np.where(stats[:, cv2.CC_STAT_AREA] >= area_min)[0] #se guardan los ids 
+    # de los componentes de superan o igualan el umbral
+    return np.isin(lab, ids[ids > 0]) #descarta el id 0 que corresponde al fondo
 
 
 def mascara_abanico(g, umbral=12, erosion=4, sacar_relleno=True):
-    """Componente no negra más grande, con huecos rellenos (los folículos anecoicos
-    son casi negros y quedan adentro), sin las bandas de relleno de la aumentación,
-    y erosionada para no pegarse al borde."""
-    m = (cv2.GaussianBlur(g, (5, 5), 0) > umbral).astype(np.uint8) 
+    m = (cv2.GaussianBlur(g, (5, 5), 0) > umbral).astype(np.uint8)   
     #se aplica un filtro gaussiano para suavizar, 
-    # no para eliminar el ruido speckel
+    # no para eliminar el ruido speckel y se separa el tejido brillante
     if sacar_relleno:
-        m[mascara_relleno(g)] = 0
-        # relleno blanco de las rotaciones de la aumentación (triángulos saturados)
+        m[mascara_relleno(g)] = 0 
+        # elimina el relleno blanco de las rotaciones de la aumentación
         m[_componentes_grandes(cv2.dilate((g >= 250).astype(np.uint8),
                                           np.ones((5, 5), np.uint8)), 150)] = 0
-    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    n, lab, stats, _ = cv2.connectedComponentsWithStats(m)
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) # la apertura elmina 
+    # pequeños objetos o ruido
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(m) 
+    #detecta las regiones y busca la de mayor área
     if n <= 1:
-        return np.ones_like(g, bool)
+        return np.ones_like(g, bool) #si no detecta nada devuelve una máscara de todos 1
     i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    roi = ndi.binary_fill_holes(lab == i)
+    roi = ndi.binary_fill_holes(lab == i) #rellena todas las cavidades oscuras dentro del abanico
     if erosion > 0:
-        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * erosion + 1, 2 * erosion + 1))
+        #reduce la máscara hacia adentro 4 pixeles evitando que los bordes puedan afectar 
+        # a las métricas o el filtrado posteriores
+        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * erosion + 1, 2 * erosion + 1)) 
         roi = cv2.erode(roi.astype(np.uint8), k).astype(bool)
     return roi
 
 
 def _estirar_roi(img, roi, p=(1, 99)):
-    lo, hi = np.percentile(img[roi], p)
+    # hace un estiramiento de contraste por percentiles
+    lo, hi = np.percentile(img[roi], p) #en vez de usar un min y un max, 
+    # toma qué valor de intensidad tienen los percentiles 1 y 99
     if hi <= lo:
         return img
     return (np.clip((img.astype(np.float32) - lo) / (hi - lo), 0, 1) * 255).astype(np.uint8)
 
 
 def preprocesar_roi(g, roi, filtro="wiener3", contraste="ninguno"):
-    f = filtrar(g, filtro)
-    if contraste == "estirar":
+    f = filtrar(g, filtro) #aplica filtrado del speckle
+    if contraste == "estirar": 
         return _estirar_roi(f, roi)
     return contrastar(f, contraste)
 
 
-# ---------------------------------------------------------------- segmentación
+# SEGMENTACIÓN
 def _umbral_oscuro(pre, roi, metodo, sigma=2.0):
-    """El umbral se aplica sobre una versión suavizada: el speckle forma manchitas
-    oscuras de pocos píxeles que, sin suavizar, caen en la clase más oscura."""
     if sigma > 0:
-        pre = cv2.GaussianBlur(pre, (0, 0), sigma)
-    vals = pre[roi]
+        pre = cv2.GaussianBlur(pre, (0, 0), sigma) 
+        #se hace un suavizado antes de segmentar para reducir el ruido
+    vals = pre[roi] #se extraen solo los pixeles del abanico
     if metodo == "multiotsu":
         try:
-            t = filters.threshold_multiotsu(vals, classes=3)[0]
-        except ValueError:  # muy pocos niveles de gris
+            t = filters.threshold_multiotsu(vals, classes=3)[0]  #se utiliza multiotsu con 3 clases 
+            # y se considera que la de intensidad más oscura corresponde al interior del folículo
+        except ValueError:  # si hay muy pocos niveles de gris pasa a otsu normal
             t = filters.threshold_otsu(vals)
         return (pre < t) & roi
     if metodo == "otsu":
-        return (pre < filters.threshold_otsu(vals)) & roi
+        return (pre < filters.threshold_otsu(vals)) & roi #calcula el umbral de otsu
     if metodo == "chanvese":
         ls = segmentation.morphological_chan_vese(pre.astype(float) / 255, 150, smoothing=2)
         if not ls.any() or ls.all():
             return np.zeros_like(roi)
-        fase = 1 if pre[ls == 1].mean() < pre[ls == 0].mean() else 0
+        fase = 1 if pre[ls == 1].mean() < pre[ls == 0].mean() else 0 
+        # evalúa cuál de las 2 regiones tiene la media de gris más oscura
         return (ls == fase) & roi
     if metodo == "triangle":
         return (pre < filters.threshold_triangle(vals)) & roi
@@ -160,31 +150,33 @@ def _umbral_oscuro(pre, roi, metodo, sigma=2.0):
         return (pre < filters.threshold_li(vals)) & roi
     if metodo == "adaptativo":
         return (pre < filters.threshold_local(pre, block_size=51, offset=15)) & roi
+        #calcula umbrales locales en ventanas de 51x51 con una resta fija de offset de 15 
     raise ValueError(f"método desconocido: {metodo}")
 
 
 def _reumbralar(lab, pre, area_max, elong_min, area_min, k, niveles=2):
+    #sirve para separar ovarios que quedaron agrupados e identificados como una sola región
     out = lab.copy()
-    for _ in range(niveles):
+    for _ in range(niveles): #el proceso se repite hasta que "niveles" veces
         nuevo = np.zeros_like(out)
         siguiente = out.max() + 1
         cambio = False
-        for r in measure.regionprops(out):
+        for r in measure.regionprops(out): #chequea que las medidas del folículo sean razonables para ser uno solo
             elong = r.axis_minor_length / max(r.axis_major_length, 1e-6)
-            if r.area <= area_max and elong >= elong_min and r.solidity >= 0.85:
-                nuevo[out == r.label] = r.label
+            if r.area <= area_max and elong >= elong_min and r.solidity >= 0.85: # se fija que no haya curvas irregulares
+                nuevo[out == r.label] = r.label #si se cumplen las 3 condiciones, se considera un folículo individual bien aíslado y se omite reumbralizar
                 continue
             reg = out == r.label
             vals = pre[reg]
-            if vals.max() - vals.min() < 20:
-                continue  # región pareja: no hay nada más oscuro adentro
-            t = filters.threshold_otsu(vals)
+            if vals.max() - vals.min() < 20: 
+                continue  # si la región es pareja y no hay nada más oscuro adentro
+            t = filters.threshold_otsu(vals) #se hace una reumbralización local
             sub = (reg & (pre < t)).astype(np.uint8)
             sub = cv2.morphologyEx(sub, cv2.MORPH_OPEN, k)
             sub_lab = measure.label(sub)
             for s_r in measure.regionprops(sub_lab):
                 if s_r.area >= area_min:
-                    nuevo[sub_lab == s_r.label] = siguiente
+                    nuevo[sub_lab == s_r.label] = siguiente  #se asiga un id único a cada nuevo folículo
                     siguiente += 1
             cambio = True
         out = nuevo
@@ -200,36 +192,24 @@ def segment_detalle(entrada, filtro="wiener3", contraste="ninguno", tam=256,
                     elong_min=0.35, contraste_min=30, contacto_max=0.25, anillo=4,
                     sigma_umbral=2.0,
                     separar=True, min_dist=7):
-    """Devuelve un dict con base, pre, roi, labels (folículos), mask y rechazos.
-
-    elong_min: eje menor / eje mayor mínimo (descarta bandas alargadas).
-    contacto_max: fracción máxima del anillo que puede tocar OTRA región oscura. Cuando
-        el watershed corta una banda oscura en pedazos, cada pedazo es redondeado pero
-        está pegado a sus vecinos sin tabique claro; dos folículos vecinos, en cambio,
-        están separados por un tabique brillante.
-    contraste_min: diferencia mínima (en niveles de gris, 0-255) entre el anillo de
-    estroma que rodea a la región y el interior. Un folículo es anecoico (negro) con
-    borde nítido; una zona oscura de estroma o una sombra acústica no tienen ese salto.
-    """
-    if conservar_aspecto:
+   
+    if conservar_aspecto: #redimensiona la imagen según el parámetro ingresado
         g = base_aspecto(entrada, tam)
     else:
         from preprocesamiento import base
         g = base(entrada, tam)
-    roi = mascara_abanico(g)
+    roi = mascara_abanico(g) 
     pre = preprocesar_roi(g, roi, filtro, contraste)
 
-    m = _umbral_oscuro(pre, roi, metodo, sigma_umbral).astype(np.uint8)
+    m = _umbral_oscuro(pre, roi, metodo, sigma_umbral).astype(np.uint8) #binariza las zonas oscuras
+    # se hace una apertura y un cierre, se sella el interior de las regiones
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     m = cv2.morphologyEx(m, cv2.MORPH_OPEN, k)
     m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, k)
-    m = ndi.binary_fill_holes(m)
+    m = ndi.binary_fill_holes(m) 
 
     lab = measure.label(m)
 
-    # Re-umbral de regiones demasiado grandes o alargadas: cuando el estroma que
-    # rodea a folículos chicos también es oscuro, el umbral global los funde con él
-    # en una sola banda. Dentro de esa banda, un Otsu local separa lo más oscuro.
     if reumbral:
         lab = _reumbralar(lab, pre, area_max_frac * roi.sum(), elong_min, area_min, k)
     # lo que sigue tocando el borde del abanico se descarta (después del re-umbral,
@@ -237,18 +217,22 @@ def segment_detalle(entrada, filtro="wiener3", contraste="ninguno", tam=256,
     lab = segmentation.clear_border(lab, mask=roi)
 
     if separar and lab.max() > 0:
-        dist = ndi.gaussian_filter(ndi.distance_transform_edt(lab > 0), 1)
+        dist = ndi.gaussian_filter(ndi.distance_transform_edt(lab > 0), 1) 
+        #se calcula la transformada de la distancia
         picos = feature.peak_local_max(dist, min_distance=min_dist, labels=lab,
                                        exclude_border=False)
+        #detecta picos locales
         marc = np.zeros(lab.shape, np.int32)
         marc[tuple(picos.T)] = np.arange(1, len(picos) + 1)
         # regiones sin pico (muy chicas) conservan su etiqueta
         sin_pico = (lab > 0) & ~np.isin(lab, np.unique(lab[marc > 0]))
         lab = segmentation.watershed(-dist, marc, mask=(lab > 0) & ~sin_pico)
+        # se corre Watershed sobre el mapa de distancia invertido
         if sin_pico.any():
-            extra = measure.label(sin_pico)
+            extra = measure.label(sin_pico) #las regiones en las que no hay un pico explícito, se mantienen intactas
             lab[extra > 0] = extra[extra > 0] + lab.max()
 
+    #se miden las métricas morfológicos 
     area_max = area_max_frac * roi.sum()
     final = np.zeros(lab.shape, np.int32)
     rechazos = np.zeros(lab.shape, np.int32)
@@ -267,10 +251,13 @@ def segment_detalle(entrada, filtro="wiener3", contraste="ninguno", tam=256,
         if ok:
             m_r = (lab == r.label).astype(np.uint8)
             anillo_r = cv2.dilate(m_r, ka).astype(bool) & (m_r == 0) & roi
+            #se contrute un anillo expandiendo la región 4 pixeles hacia afuera
             fuera = anillo_r & libre
-            contacto = (anillo_r & oscuro_total).sum() / max(anillo_r.sum(), 1)
+            contacto = (anillo_r & oscuro_total).sum() / max(anillo_r.sum(), 1) 
+            #verifica qué porcentaje del anillo colisiona con otras zonas oscuras
+            #si hay demasiado contacto, se descarta por considerarse una sombra extendida
             ok = fuera.sum() > 0 and contacto <= contacto_max
-            if ok and contraste_min > 0:
+            if ok and contraste_min > 0: #se exige que haya un constraste considerable entre las regiones interior y exterior
                 ok = prefl[fuera].mean() - prefl[m_r > 0].mean() >= contraste_min
         if ok:
             k_id += 1
@@ -284,27 +271,24 @@ def segment_detalle(entrada, filtro="wiener3", contraste="ninguno", tam=256,
 
 
 def segment(entrada, **kw):
-    """img -> mask (bool). Es la función que usa el resto del proyecto."""
-    return segment_detalle(entrada, **kw)["mask"]
+    return segment_detalle(entrada, **kw)["mask"] #implementación de segment_detalle
 
-
-# ---------------------------------------------------------------- métricas
+# Métricas
 def metricas_foliculos(d, ancho=4):
-    """Una fila por folículo: forma + interfaz folículo-exterior.
-
-    dentro = anillo interno del folículo; fuera = anillo de estroma inmediato
-    (dentro del abanico y sin otros folículos). Contraste, CNR y gradiente en el
-    borde miden qué tan nítida es la interfaz.
-    """
+    #se calculan los descriptrores de cada folículo individual
+    # lo que devuelve nos permite verificar después la combinación de los filtros
     img, lab, roi = d["pre"].astype(np.float32), d["labels"], d["roi"]
     gx = cv2.Sobel(img, cv2.CV_32F, 1, 0)
     gy = cv2.Sobel(img, cv2.CV_32F, 0, 1)
     grad = np.hypot(gx, gy)
+    # el gradiente mide la tasa de cambio de intensidad local
     k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * ancho + 1, 2 * ancho + 1))
-    libre = roi & (lab == 0)
+    libre = roi & (lab == 0) # se guarda la máscara
     filas = []
     for r in measure.regionprops(lab):
-        m = (lab == r.label).astype(np.uint8)
+        m = (lab == r.label).astype(np.uint8) 
+        #para cada candidato identificado en la matriz de etiquetas lab
+        #la función contruye 3 regiones clave que son dentro, fuera y borde
         dentro = m.astype(bool) & ~cv2.erode(m, k).astype(bool)
         fuera = cv2.dilate(m, k).astype(bool) & libre
         borde = segmentation.find_boundaries(m.astype(bool), mode="inner")
@@ -313,6 +297,7 @@ def metricas_foliculos(d, ancho=4):
         md, mf = img[dentro].mean(), img[fuera].mean()
         vd, vf = img[dentro].var(), img[fuera].var()
         filas.append(dict(
+            #se guardan las métricas de cada folículo
             foliculo=r.label, area=r.area, perimetro=r.perimeter,
             eje_mayor=r.axis_major_length, eje_menor=r.axis_minor_length,
             excentricidad=r.eccentricity, solidez=r.solidity,
@@ -320,7 +305,9 @@ def metricas_foliculos(d, ancho=4):
             cy=r.centroid[0], cx=r.centroid[1],
             media_dentro=md, media_fuera=mf,
             contraste_interfaz=mf - md,
-            cnr_interfaz=(mf - md) / np.sqrt(vd + vf + 1e-6),
+            cnr_interfaz=(mf - md) / np.sqrt(vd + vf + 1e-6), 
+            #se calcula el grado de distinción 
+            # entre el folículo y el estroma que está a su alrededor
             gradiente_borde=float(grad[borde].mean()),
             desvio_fuera=float(np.sqrt(vf)),
         ))
@@ -328,7 +315,7 @@ def metricas_foliculos(d, ancho=4):
 
 
 def resumen_imagen(d):
-    """Características por imagen a partir de la segmentación (para C)."""
+   # esta función agrupa y normaliza las métricas de todos los folículos individuales de una misma imagen
     fol = metricas_foliculos(d)
     area_roi = float(d["roi"].sum())
     out = dict(n_foliculos=len(fol), frac_area_foliculos=float(d["mask"].sum()) / area_roi)
@@ -336,6 +323,7 @@ def resumen_imagen(d):
         a = np.array([f["area"] for f in fol], float)
         c = np.array([[f["cy"], f["cx"]] for f in fol])
         out.update(
+            #si hay más de 1 folículo, se calculan promedios globales y coeficientes de dispersión
             area_media=float(a.mean() / area_roi),
             area_cv=float(a.std() / a.mean()),
             circularidad_media=float(np.mean([f["circularidad"] for f in fol])),
@@ -343,7 +331,7 @@ def resumen_imagen(d):
             cnr_interfaz_medio=float(np.mean([f["cnr_interfaz"] for f in fol])),
             gradiente_borde_medio=float(np.mean([f["gradiente_borde"] for f in fol])),
         )
-        if len(fol) > 1:  # apiñamiento: distancia al vecino más cercano, normalizada
+        if len(fol) > 1:  # se calcula la distancia al vecino más cercano normalizada
             dd = np.sqrt(((c[:, None] - c[None]) ** 2).sum(-1))
             np.fill_diagonal(dd, np.inf)
             out["dist_vecino_media"] = float(dd.min(1).mean() / np.sqrt(area_roi))
@@ -351,28 +339,25 @@ def resumen_imagen(d):
 
 
 def superponer(d, color=(255, 0, 0), ver_rechazos=False):
-    """RGB con el contorno de los folículos (rojo) y del abanico (celeste) sobre la
-    imagen preprocesada. ver_rechazos=True dibuja en amarillo las regiones oscuras que
-    se descartaron (sirve para ajustar los parámetros)."""
+    #genera un mapa visual en RGB superponiendo los contornos vectoriales obtenidos 
+    # de la segmentación sobre la imagen preprocesada
     rgb = cv2.cvtColor(d["pre"], cv2.COLOR_GRAY2RGB)
     if ver_rechazos and d.get("rechazos") is not None and d["rechazos"].any():
-        cr, _ = cv2.findContours(d["rechazos"].astype(np.uint8), cv2.RETR_EXTERNAL,
-                                 cv2.CHAIN_APPROX_NONE)
+        cr, _ = cv2.findContours(d["rechazos"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         cv2.drawContours(rgb, cr, -1, (255, 220, 0), 1)
-    cnts, _ = cv2.findContours(d["mask"].astype(np.uint8), cv2.RETR_EXTERNAL,
-                               cv2.CHAIN_APPROX_NONE)
+    #se extraen los contornos de la mascara binaria yy se dibujan los cotornos en rojo
+    cnts, _ = cv2.findContours(d["mask"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cv2.drawContours(rgb, cnts, -1, color, 1)
-    roi_c, _ = cv2.findContours(d["roi"].astype(np.uint8), cv2.RETR_EXTERNAL,
-                                cv2.CHAIN_APPROX_NONE)
+    #extrae el tamaño de la roi y lo superpone en celeste
+    roi_c, _ = cv2.findContours(d["roi"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cv2.drawContours(rgb, roi_c, -1, (0, 160, 255), 1)
+    
     return rgb
 
 
-# ============================================================================
-# COMANDO comparar: elige método/filtro/contraste (conteo, Dice, vista)
-# ============================================================================
+
 def auc(pos, neg):
-    """AUC de Mann-Whitney: P(conteo de una PCOS > conteo de una sana)."""
+    #calcula el área bajo la curva ROC entre los que tiene PCOS y los sanos
     pos, neg = np.asarray(pos, float), np.asarray(neg, float)
     if len(pos) == 0 or len(neg) == 0:
         return float("nan")
@@ -382,6 +367,7 @@ def auc(pos, neg):
 
 
 def leer_splits(ruta, uno_por_grupo, seed):
+    #se toma el contenido del archivo de splits para evaluar las metricas de segmentación
     with open(ruta, encoding="utf-8") as f:
         filas = [r for r in csv.DictReader(f) if r["split"] == "cv"]
     if uno_por_grupo:
@@ -389,14 +375,16 @@ def leer_splits(ruta, uno_por_grupo, seed):
         por_grupo = defaultdict(list)
         for r in filas:
             por_grupo[r["grupo"]].append(r)
-        filas = [rng.choice(v) for _, v in sorted(por_grupo.items(), key=lambda kv: int(kv[0]))]
+        filas = [rng.choice(v) for _, v in sorted(por_grupo.items(), key=lambda kv: int(kv[0]))] 
+        # se selecciona aleatoriamente una imagen representativa por grupo 
+        # para evitar sesgo de la evaluación de la segmentación de imágenes duplicadas o múltiples del mismo paciente
     return filas
 
 
-# ---------------------------------------------------------------- modo Dice
+# Se evalúa la detección de los folículos comparando la matriz de etiquetas segmentadas automáticamente
 def deteccion_foliculos(pred_lab, gt_lab, iou_min=0.5):
-    """(n_gt, n_pred, gt_encontrados, pred_acertados). Un folículo manual cuenta como encontrado
-    si algún folículo segmentado lo cubre con IoU >= iou_min; y al revés para la precisión."""
+    #cuantifica cuántos folículos reales fueron detectados correctamente 
+    # y cuántas detecciones automáticas fueron aciertos reales
     ng, npd = int(gt_lab.max()), int(pred_lab.max())
     n_gt = len(np.unique(gt_lab[gt_lab > 0]))
     if n_gt == 0 or npd == 0:
@@ -411,12 +399,13 @@ def deteccion_foliculos(pred_lab, gt_lab, iou_min=0.5):
     return n_gt, npd, int(ok.any(1).sum()), int(ok.any(0).sum())
 
 def metricas_mascara(pred, gt):
-    """Dice, Jaccard, sensibilidad y precisión píxel a píxel entre dos máscaras booleanas.
-    Si las dos están vacías (imagen sin folículos y nada detectado) cuenta como acierto total."""
-    inter = float((pred & gt).sum())
+    # se calculan las métricas cuantitativas de evaluación semántica pixel por pixel
+    inter = float((pred & gt).sum()) 
     sp, sg = float(pred.sum()), float(gt.sum())
     if sp == 0 and sg == 0:
-        return dict(dice=1.0, jaccard=1.0, sens=1.0, prec=1.0)
+        return dict(dice=1.0, jaccard=1.0, sens=1.0, prec=1.0) 
+    #si la imagen no tiene folículos reales y el algoritmo hizo una máscara vacía 
+    # --> asigna 1 en todas las métricas
     return dict(dice=2 * inter / (sp + sg),
                 jaccard=inter / (sp + sg - inter),
                 sens=inter / sg if sg else float("nan"),
@@ -424,8 +413,6 @@ def metricas_mascara(pred, gt):
 
 
 def recortar_a_zona(lab, zona, frac_min=0.5):
-    """Deja solo los folículos con al menos frac_min de su área dentro de la zona (máscara
-    booleana), recortados a la zona, y los renumera 1..N."""
     out = np.zeros(lab.shape, np.int32)
     k = 0
     for i in np.unique(lab[lab > 0]):
@@ -437,17 +424,21 @@ def recortar_a_zona(lab, zona, frac_min=0.5):
 
 
 def superponer_gt(d, gt, zona=None):
-    """Como superponer() (rojo = automática) más el contorno manual en verde y la zona en amarillo."""
-    rgb = superponer(d)
+    #se extraen los contornos dibujados manualmente y se dibujan en color verde
+    rgb = superponer(d) 
     cnts, _ = cv2.findContours(gt.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cv2.drawContours(rgb, cnts, -1, (0, 255, 0), 1)
     if zona is not None:
         x, y, l = zona
-        cv2.rectangle(rgb, (x, y), (x + l, y + l), (255, 255, 0), 1)
+        cv2.rectangle(rgb, (x, y), (x + l, y + l), (255, 255, 0), 1) #marca la región de zoom con un cuadrado amarillo 
     return rgb
 
 
 def modo_dice(args, kw):
+    #Evalúa múltiples combinaciones de filtrado, contraste y 
+    # umbralización frente a máscaras manuales de referencia, 
+    # integrando métricas a nivel de píxel, métricas a nivel de objeto, 
+    # control de Pareto y pruebas de significación estadística.
     with open(ROOT / args.mascaras, encoding="utf-8") as f:
         filas = [r for r in csv.DictReader(f)
                  if args.conjunto == "todos" or r["conjunto"] == args.conjunto]
@@ -456,7 +447,7 @@ def modo_dice(args, kw):
                          "anotá más con anotar_mascaras.py (mínimo 10).")
     if args.conjunto != "ajuste":
         print("AVISO: 'reporte' es para medir el resultado final con la combinación y los "
-              "parámetros ya elegidos. Si elegís mirando estos números, deja de ser independiente.")
+              "parámetros ya elegidos.")
     if args.combos:
         combos = [tuple(c.split("+")) for c in args.combos]
     else:
@@ -473,13 +464,11 @@ def modo_dice(args, kw):
     tiempos = defaultdict(list)
     fig = defaultdict(dict)
     REPORTES.mkdir(exist_ok=True)
-    for r in filas:
-        gt = cv2.imread(str(ROOT / r["mascara"]), cv2.IMREAD_UNCHANGED)
-        if gt is None:
-            raise SystemExit(f"No se pudo leer la máscara {r['mascara']}")
+    for r in filas: #itera sobre la grilla de combinaciones midiendo el tiempo de procesamiento
+        gt = leer_mascara(r)
         zl = int(r.get("zlado") or 0)
         zona, zrect = np.ones(gt.shape, bool), None
-        if zl > 0:   # zona de evaluación: solo se mide dentro del cuadrado
+        if zl > 0:  
             zx, zy = int(r["zx"]), int(r["zy"])
             zona = np.zeros(gt.shape, bool)
             zona[zy:zy + zl, zx:zx + zl] = True
@@ -595,8 +584,8 @@ def modo_dice(args, kw):
     (REPORTES / "resumen_dice.txt").write_text(texto + "\n", encoding="utf-8")
 
 def modo_vista(args, kw):
-    """Figura para decidir a ojo: una fila por imagen y una columna por combinación (sin máscara manual).
-    Con --ciego las columnas se mezclan y se rotulan A, B, C...; la clave queda en un archivo aparte."""
+   # aplica las combinaciones de filtro, métodos de segmentación y contraste, y las muestra en una imagen
+   # para que se mire a ojo su rendimiento
     if not args.combos:
         raise SystemExit("--vista necesita --combos metodo+filtro+contraste ...")
     combos = [tuple(c.split("+")) for c in args.combos]
@@ -625,21 +614,7 @@ def modo_vista(args, kw):
         print("Columnas rotuladas A, B, C...; la clave está en reports/seg_vista_clave.txt")
 
 def cmd_comparar(argv=None):
-    """Elige filtro + contraste según cómo sale la SEGMENTACIÓN (no según cómo se ve la imagen).
-
-Usa solo imágenes con split == "cv" de splits.csv (el hold-out no se toca) y, por
-defecto, UNA imagen por grupo de near-duplicados, para que un grupo grande no pese
-más que el resto.
-
-Salidas en reports/:
-  seg_overlays.png          contornos de folículos (rojo) y del abanico (celeste) por combinación
-  seg_conteos.csv           n de folículos por imagen y combinación
-  resumen_segmentacion.txt  por combinación: conteo medio por clase, AUC del conteo
-                            (qué tan bien separa PCOS de sanos) y su desvío entre folds
-
-Criterio sugerido: AUC alto y estable entre folds, pocos folículos en sanos, y
-contornos que en la figura sigan bien a los folículos. Anotar la elección en el informe.
-"""
+    #hace la evaluación comparativa del pipeline de segmentación
     ap = argparse.ArgumentParser()
     ap.add_argument("--filtros", nargs="+", default=["ninguno", "wiener3", "wiener5", "gauss1.0", "frost7"])
     ap.add_argument("--contrastes", nargs="+", default=["ninguno", "estirar"])
@@ -757,13 +732,8 @@ contornos que en la figura sigan bien a los folículos. Anotar la elección en e
     (REPORTES / "resumen_segmentacion.txt").write_text(texto + "\n", encoding="utf-8")
 
 
-# ============================================================================
-# COMANDO ver-casos: peores conteos
-# ============================================================================
 def cmd_ver_casos(argv=None):
-    """Muestra los casos donde el conteo de folículos más se equivoca (correr después de
-segmentacion.py comparar).
-
+    """
   fila 1: las PCOS con MENOS folículos  -> ¿se pierden folículos o la imagen no los muestra?
   fila 2: las sanas con MÁS folículos   -> ¿qué está tomando como folículo?
 
@@ -825,17 +795,14 @@ Uso:
     print("\nFigura: reports/seg_peores.png (fila 1 = PCOS, fila 2 = sanas)")
 
 
-# ============================================================================
-# COMANDO anotar-mascaras: folículos dibujados a mano (referencia para Dice)
-# ============================================================================
+
 CARPETA = ROOT / "mascaras"
 INDICE = ROOT / "mascaras.csv"
 CAMPOS = ["imagen", "clase", "mascara", "n_foliculos", "conjunto", "tam", "zx", "zy", "zlado"]
 
 
+# Todo esto sirve para hacer el dibujo de la máscara manual
 class Mascara:
-    """Estado de los polígonos de una imagen (separado de la ventana para poder probarlo)."""
-
     def __init__(self, g):
         self.g = g
         self.poligonos = []   # cada uno: array (n, 2) int32 de (x, y)
@@ -880,7 +847,6 @@ class Mascara:
 
 
 def asignar_conjunto(muestra):
-    """Mitad 'ajuste' y mitad 'reporte' dentro de cada clase, de forma determinista."""
     por_clase = defaultdict(list)
     for p, cl in sorted(muestra):
         por_clase[cl].append(p)
@@ -896,7 +862,6 @@ def ya_anotadas():
 
 
 def migrar_indice():
-    """Si mascaras.csv es de una versión sin zona, agrega zx, zy, zlado = 0 (0 = imagen completa)."""
     if not INDICE.exists():
         return
     with open(INDICE, encoding="utf-8") as fh:
@@ -913,7 +878,6 @@ def migrar_indice():
 
 
 def procesar_tecla(est, tecla, estirar):
-    """Aplica una tecla al estado. Devuelve (accion, estirar); accion: None, 'guardar', 'saltear' o 'salir'."""
     if tecla == ord("c"):
         return None, not estirar
     if tecla in (ord("q"), 27):
@@ -946,10 +910,20 @@ def procesar_tecla(est, tecla, estirar):
     return None, estirar
 
 
+def leer_mascara(r):
+    if int(r["n_foliculos"]) == 0 and not (ROOT / r["mascara"]).is_file():
+        return np.zeros((int(r["tam"]), int(r["tam"])), np.uint8)
+    gt = cv2.imread(str(ROOT / r["mascara"]), cv2.IMREAD_UNCHANGED)
+    if gt is None:
+        raise SystemExit(f"No se pudo leer la máscara {r['mascara']}")
+    return gt
+
+
 def guardar(p, clase, est, conjunto, tam):
     destino = CARPETA / f"{clase}__{p.stem}.png"
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(destino), est.etiquetas())
+    if est.poligonos:   # sin folículos no se guarda el PNG: leer_mascara la reconstruye vacía
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(destino), est.etiquetas())
     nuevo = not INDICE.exists()
     with open(INDICE, "a", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -987,17 +961,7 @@ def dibujar(est, zoom, texto, estirar):
 
 
 def cmd_anotar_mascaras(argv=None):
-    """Dibujá a mano los folículos de una muestra de imágenes (referencia para calcular Dice).
-
-Cada folículo es un polígono. Se dibuja sobre la imagen base de segmentacion.py (sin filtros),
-así que la máscara queda en el mismo marco de 256x256 que la segmentación y se puede comparar
-píxel a píxel. No cambies `base_aspecto` ni --tam después de empezar a anotar.
-
-Zona de evaluación: en cada imagen primero ubicás un cuadrado de --zona px (un clic, ENTER para
-confirmar) y marcás TODOS los folículos que toquen esa zona. Las métricas de segmentacion.py comparar
-se calculan solo dentro del cuadrado, así que lo que quede afuera no cuenta. Mismo tamaño en todas
-las imágenes, y elegí siempre una parte del ovario con folículos nítidos, sin mirar ningún resultado.
-
+    """
 Controles (ventana de OpenCV, imagen ampliada --zoom veces):
   fase zona:        clic = ubicar el cuadrado (se puede repetir), ENTER/espacio = confirmar
   r                 vuelve a la fase zona para mover el cuadrado
@@ -1014,18 +978,6 @@ Criterio (el mismo en todas las imágenes, y fijado antes de empezar):
   marcá estructuras oscuras de borde nítido, redondeadas u ovales, dentro del ovario; el contorno
   va sobre el borde del folículo. No marques sombras acústicas ni zonas oscuras del estroma sin
   borde claro. Ante la duda, siempre la misma decisión (por ejemplo, no marcar).
-
-Muestra: imágenes de split == "cv" del CSV --splits (una por grupo), balanceadas por clase, con la
-misma semilla que preprocesamiento.py anotar-rois. Con --fuente se toman solo las imágenes cuyo
-nombre empieza con ese prefijo (ej. dv = Dataverse). La mitad de cada clase queda como "ajuste"
-(para calibrar parámetros de la segmentación) y la otra mitad como "reporte" (solo para medir el
-resultado final). No cambies --n-por-clase, --seed, --splits ni --fuente a mitad de camino:
-cambiaría la muestra.
-
-Salidas (con --sufijo, por ejemplo _dv, los nombres llevan ese sufijo y no se mezclan):
-  mascaras<sufijo>/<clase>__<imagen>.png   etiquetas (0 = fondo, 1..N = folículo i)
-  mascaras<sufijo>.csv                     índice: imagen, clase, máscara, n, conjunto, tam,
-                                           zx, zy, zlado (zlado = 0: la zona es la imagen completa)
 
 Uso:
     python segmentacion.py anotar-mascaras --n-por-clase 15                       # Kaggle (como antes)
