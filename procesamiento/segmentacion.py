@@ -53,10 +53,6 @@ EXT = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
-# ============================================================================
-# SEGMENTACIÓN DE FOLÍCULOS
-# ============================================================================
-# ---------------------------------------------------------------- imagen base
 def base_aspecto(entrada, tam=256, marcas=True, texto=True):
     """Como preprocess.base, pero escala el lado mayor a `tam` y rellena con negro.
 
@@ -103,7 +99,9 @@ def mascara_abanico(g, umbral=12, erosion=4, sacar_relleno=True):
     """Componente no negra más grande, con huecos rellenos (los folículos anecoicos
     son casi negros y quedan adentro), sin las bandas de relleno de la aumentación,
     y erosionada para no pegarse al borde."""
-    m = (cv2.GaussianBlur(g, (5, 5), 0) > umbral).astype(np.uint8)
+    m = (cv2.GaussianBlur(g, (5, 5), 0) > umbral).astype(np.uint8) 
+    #se aplica un filtro gaussiano para suavizar, 
+    # no para eliminar el ruido speckel
     if sacar_relleno:
         m[mascara_relleno(g)] = 0
         # relleno blanco de las rotaciones de la aumentación (triángulos saturados)
@@ -774,7 +772,7 @@ y la lista de archivos en la terminal, para abrirlos y mirarlos en tamaño origi
 
 Uso:
     python segmentacion.py ver-casos                         # combinación wiener3+ninguno
-    python segmentacion.py ver-casos --filtro lee --contraste clahe --n 8
+    python segmentacion.py ver-casos --filtro lee --contraste global --n 8
     python segmentacion.py ver-casos --contraste-min 20      # mismos parámetros que usaste al comparar
 """
     ap = argparse.ArgumentParser()

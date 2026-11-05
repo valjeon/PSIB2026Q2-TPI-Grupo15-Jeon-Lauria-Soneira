@@ -5,7 +5,7 @@ Pipeline de `preprocess(entrada)`:
   2. recortar el área útil (saca bordes negros)
   3. llevar a un tamaño común (INTER_AREA al achicar)  -> reduce pistas de resolución
   4. filtro de speckle (mediana, gaussiano, bilateral, nlm, lee, kuan, frost)
-  5. contraste (global, clahe, estirar)
+  5. contraste (global, estirar)
 
 El tamaño común se aplica ANTES de filtrar: el speckle de una imagen de 984x848 y el de una
 de 300x300 no son comparables hasta que tienen la misma resolución.
@@ -744,7 +744,7 @@ El control entrena un Random Forest que NO ve la imagen sino estadísticos de ba
 a borrar las pistas de la fuente. Usa los grupos de splits.csv si existe (CV sin fuga).
 
 Uso (desde cualquier carpeta):
-    python preprocesamiento.py procesar --filtro mediana --contraste clahe --tam 256
+    python preprocesamiento.py procesar --filtro mediana --contraste global --tam 256
 """
     ap = argparse.ArgumentParser()
     ap.add_argument("--filtro", default="wiener3")
