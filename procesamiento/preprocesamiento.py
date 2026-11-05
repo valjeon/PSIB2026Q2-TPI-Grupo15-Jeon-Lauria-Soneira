@@ -358,9 +358,6 @@ Métricas:
     (REPORTES / "resumen_comparacion_preproc.txt").write_text(texto + "\n", encoding="utf-8")
 
 
-# ============================================================================
-# COMANDO anotar-rois: bloques homogéneos marcados a mano
-# ============================================================================
 ZOOM = 3
 ROIS = ROOT / "rois.csv"
 CAMPOS = ["path", "clase", "x", "y", "lado", "tam"]
@@ -374,13 +371,7 @@ def leer_splits(archivo="splits.csv"):
 
 
 def armar_muestra(n_por_clase, rng, splits="splits.csv", fuente=None, solo_cv=True):
-    """Devuelve [(ruta, clase)], balanceada por clase, independiente de near-duplicados.
-    Con splits.csv usa solo split == "cv" y una imagen por grupo.
-    fuente: si se da (ej. "dv"), solo imágenes cuyo nombre empieza con ese prefijo.
-    solo_cv=False: incluye también el hold-out. 
-    El uso de distintas divisiones del dataset sea cv o el hold-out es más relevante a la hora de utilizar Machine Learning. 
-    Para esta instancia del trabajo no es necesario considerarlo."""
-
+#toma muestras aleatorias de splits para hacer las pruebas sobre ellas
     filas = leer_splits(splits)
     por_clase = defaultdict(list)
     if filas is not None:
@@ -407,7 +398,6 @@ def armar_muestra(n_por_clase, rng, splits="splits.csv", fuente=None, solo_cv=Tr
 
 
 class Bloques:
-    """Estado de los bloques de una imagen (separado de la ventana para poder probarlo)."""
 
     def __init__(self, g, lado, k):
         self.g, self.lado, self.k = g, lado, k
@@ -480,12 +470,8 @@ Criterio para elegir un bloque: tejido liso (estroma) sin bordes, sin folículos
   
   Se marcan 3 bloques por imagen (mínimo 1, máximo --k).
 
-Se puede retomar porque las imágenes que ya están en rois.csv se saltean.
-Los bloques se guardan en coordenadas de la imagen base de --tam x --tam (la misma que usa
-preprocesamiento.py elegir-filtro).
-
 Uso:
-    python preprocesamiento.py anotar-rois --n-por-clase 20          # 40 imágenes en total
+    python preprocesamiento.py anotar-rois --n-por-clase 20       
     python preprocesamiento.py elegir-filtro --rois rois.csv
 """
     ap = argparse.ArgumentParser()
@@ -533,10 +519,7 @@ Uso:
     print(f"Terminaste la muestra. Marcas en {ROIS}")
 
 
-# ============================================================================
-# COMANDO elegir-filtro: ranking de filtros por ENL
-# ============================================================================
-# ---------------------------------------------------------------- ENL y bloques marcados
+#Elección de los filtros por ENL y beta
 def enl(img, bloques, lado=16, eps=1e-3):
     """Mediana del ENL = media^2 / varianza sobre los bloques dados."""
     f = img.astype(np.float64)
@@ -578,24 +561,8 @@ def figura_rois(items, lado_bloque, destino, cols=4, n=12):
     cv2.imwrite(str(destino), np.vstack(filas))
 
 
-# ---------------------------------------------------------------- main
 def cmd_elegir_filtro(argv=None):
-    """Elige el filtro de speckle usando ENL como único criterio, sobre los bloques que se marcaron a mano.
- 
-ENL = media^2 / varianza, medido en bloques de tejido homogéneo. Más ENL = más suavizado del speckle.
- 
-Entrada: rois.csv, generado por preprocesamiento.py anotar-rois (imagen, clase, posición y tamaño de cada bloque).
-Los bloques son los mismos píxeles para la imagen original y para todos los filtros.
- 
-Salidas en reports/:
-  enl_resultados_manual.csv   una fila por imagen y filtro (ENL, cociente vs. original, beta)
-  enl_resumen_manual.txt      ranking por ENL + tests estadísticos pareados
-  enl_rois_manual.png         bloques sobre algunas imágenes (para verificar)
- 
-Uso:
-    python preprocesamiento.py elegir-filtro                 # lee rois.csv de la raíz del repo
-    python preprocesamiento.py elegir-filtro --rois otro.csv
-"""
+    #se elige el filtro usando solo ENL como parámetro 
     ap = argparse.ArgumentParser()
     ap.add_argument("--rois", default="rois.csv", help="CSV generado por anotar_rois.py")
     args = ap.parse_args(argv)
@@ -692,11 +659,7 @@ def estadisticos(g):
         "frac_oscura": float((x < 0.1).mean()), "frac_clara": float((x > 0.9).mean()),
     }
 
-
 def auc_mann_whitney(x, y):
-    """AUC de una sola variable sin entrenar nada: estadístico U de Mann-Whitney
-    Es la probabilidad de que un caso positivo al azar tenga un valor mayor que uno negativo
-    (los empates cuentan 1/2). Se devuelve simetrizado: 0,5 = no separa, 1 = separa perfecto."""
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=bool)
     n1, n0 = int(y.sum()), int((~y).sum())
@@ -707,11 +670,7 @@ def auc_mann_whitney(x, y):
     a = u / (n1 * n0)
     return float(max(a, 1 - a))
 
-
 def control_atajos(filas, claves):
-    """AUC de cada estadístico de bajo nivel por separado (histograma, gradiente, ruido).
-    Si alguno todavía separa las clases, el preprocesamiento no borró las pistas de la fuente.
-    No se entrena ningún modelo."""
     clases = sorted({k[0] for k in claves})
     if len(clases) != 2 or len(filas) < 50:
         return None
@@ -720,17 +679,6 @@ def control_atajos(filas, claves):
 
 
 def cmd_procesar(argv=None):
-    """Aplica preprocess() a todo data/clean -> data/pre (PNG sin pérdida) y corre un
-control de atajos sobre el resultado.
-
-El control calcula el AUC de cada estadístico de bajo nivel (histograma, gradiente, ruido)
-por separado, sin entrenar ningún modelo. Si alguno todavía separa las clases, el
-preprocesamiento no alcanzó a borrar las pistas de la fuente.
-
-Uso (desde cualquier carpeta):
-    python preprocesamiento.py procesar --filtro mediana --contraste global --tam 256
-    python preprocesamiento.py procesar --filtro wiener3 --contraste ninguno --tam 256
-"""
     ap = argparse.ArgumentParser()
     ap.add_argument("--filtro", default="wiener3")
     ap.add_argument("--contraste", default="ninguno")

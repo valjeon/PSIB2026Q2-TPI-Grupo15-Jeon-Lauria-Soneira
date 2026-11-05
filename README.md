@@ -1,17 +1,17 @@
 # PSIB - Grupo 15: Detección de PCOS en ecografías
 
-## Dataset
-
+## Datasets
+Los datasets utilizados en el proyecto son los siguientes:
 [PCOS detection using ultrasound images](https://www.kaggle.com/datasets/anaghachoudhari/pcos-detection-using-ultrasound-images)
-(Kaggle). 3856 imágenes divididas originalmente en train y test, cada una
-con sus clases infected / non-infected. El dataset original está en
-`data/raw/`.
+(Kaggle). 
+[Polycystic Ovary Ultrasound Images Dataset](https://dataverse.telkomuniversity.ac.id/dataset.xhtml%3Bjsessionid%3Daaebf699ef92d0fd585a6ae61f15?fileAccess=&fileSortField=date&fileTypeGroupFacet=%22Image%22&persistentId=doi%3A10.34820%2FFK2%2FQVCP6V&q=&version=&utm_source=chatgpt.com)
+Se tienen que descargar las imágenes y poner la carpeta descomprimida en data/raw. 
 
 ## Estructura
 
 - `data/raw/`: dataset original, tal cual se descargó
 - `data/all/`: train y test unificados (se genera con el script)
-- `procesamiento/limpieza.py unir`: unifica train y test (y otros datasets) en `data/all/`
+- `procesamiento`
 
 ## Código (`procesamiento/`)
 

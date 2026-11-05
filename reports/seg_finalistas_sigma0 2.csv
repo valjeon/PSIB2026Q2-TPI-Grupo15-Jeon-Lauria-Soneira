@@ -1,0 +1,10 @@
+combinacion,dice,f1,finalista,motivo
+chanvese+frost7+ninguno,0.6191,0.4474,1,
+multiotsu+wiener5+ninguno,0.614,0.4557,1,
+multiotsu+gauss1.0+ninguno,0.5829,0.5238,1,
+multiotsu+ninguno+ninguno,0.5793,0.5,1,
+chanvese+gauss1.0+ninguno,0.562,0.5111,1,
+chanvese+ninguno+ninguno,0.5427,0.5306,1,
+otsu+ninguno+ninguno,0.5023,0.5333,1,
+multiotsu+mediana5+ninguno,0.4569,0.5227,1,
+multiotsu+mediana5+estirar,0.2654,0.4211,0,no supera al predictor vacío
