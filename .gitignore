@@ -1,10 +1,17 @@
+
 .venv/
+venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .vscode/
 .DS_Store
-data/
+# (data/raw queda versionado, porque ya está en el repo)
+data/all/
+data/clean/
+data/pre/
 reports/*.jpg
 reports/*.png
+reports/figuras/
+reports/figuras_caracteristicas/
 splits_*.csv
