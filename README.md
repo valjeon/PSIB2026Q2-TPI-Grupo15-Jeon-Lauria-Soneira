@@ -63,8 +63,6 @@ python procesamiento/segmentacion.py comparar --mascaras mascaras.csv --splits s
 # 4. Características y comparación entre clases
 python procesamiento/texturas.py 
 
-# 5. Figuras
-python procesamiento/figuras.py
 ```
 
 unir sin --extra usa solo el dataset de Kaggle de data/raw/. Si se agrega otro dataset, sus archivos se copian a data/all/<clase>/<fuente>_<nombre>.
