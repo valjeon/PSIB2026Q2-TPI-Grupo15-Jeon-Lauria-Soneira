@@ -9,32 +9,8 @@ Flujo:
   4. comparar: PCOS vs sanas con las medianas de grupo (AUC + permutación), por fuente de dónde se extrajo la imagen
   5. CSV, figuras y caracteristicas_resumen.txt en reports/
 
-Definiciones:
-  campo (ROI)  = porción de la ecografía que devuelve la segmentación.
-  estroma      = campo - folículos - un anillo del borde de cada folículo.
 
-Datos (extraídos de dos fuentes distintas):
-  Kaggle            1.699 imágenes que son aumentaciones (zoom, rotación, recorte)
-                         de solo 8 ecografías: 4 PCOS y 4 sanas.
-  Dataverse         52 imágenes de 50 ecografías.
-Cada ecografía original es un `grupo` en splits2.csv. Las variantes de un grupo no son
-muestras independientes, así que PCOS vs sanas se compara con una mediana por grupo, y
-dentro de cada fuente, ya que puede haber diferencias de tamaño y encuadre entre ellas.
-
-Salidas (reports/):
-caracteristicas_imagenes.csv        una fila por imagen
-caracteristicas_grupos.csv          mediana e IQR por grupo
-caracteristicas_comparacion.csv     PCOS vs sanas por fuente
-caracteristicas_resumen.txt         igual que caracteristicas_comparacion.csv pero en formato de texto,
-                                    con la explicación de cada columna
-caracteristicas_montaje.png         una ecografía representativa por grupo (folículos en rojo,
-                                    estroma en verde); si se quiere omitir se escribe --sin-montaje
-figuras_caracteristicas/            carpeta (solo con --imagenes N): un PNG por imagen, hasta N figuras 
-                                    por grupo. Cada PNG tiene tres paneles: contornos numerados | 
-                                    estroma y folículos | mediciones.
-                                    Se vacía al empezar cada corrida.
-
-Uso (por defecto: multiotsu + wiener3 + sin contraste, hasta 40 imágenes por grupo)
+Uso 
     python procesamiento/texturas.py --n-por-grupo 40 --imagenes 3
     python procesamiento/texturas.py --n-por-grupo 0        # todas las imágenes
     python procesamiento/texturas.py --metodo chanvese --filtro frost7 --contraste ninguno #otra segmentación,

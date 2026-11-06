@@ -61,7 +61,7 @@ python procesamiento/segmentacion.py comparar --mascaras mascaras.csv --splits s
     --metodos multiotsu --filtros wiener3 --contrastes ninguno
 
 # 4. Características y comparación entre clases
-python procesamiento/texturas.py --filtro wiener3 --contraste ninguno
+python procesamiento/texturas.py 
 
 # 5. Figuras
 python procesamiento/figuras.py
