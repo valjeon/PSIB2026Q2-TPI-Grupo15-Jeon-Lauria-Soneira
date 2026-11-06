@@ -79,6 +79,7 @@ python procesamiento/segmentacion.py anotar-mascaras     # contornos de folícul
 ## Resultados
 Los resultados (tablas, resúmenes y figuras) se escriben en `reports/`. Los principales:
 | Archivo | Contenido |
+|---|---|
 |`resumen_limpieza.txt`,`resumen_auditoria.txt`|Limpieza, sesgos de adquisición y grupos de ecografías|
 |`enl_resumen_manual.txt`|Ranking de filtros por ENL y β|
 |`resumen_dice.txt`, `seg_finalistas.csv`|Evaluación de la segmentación y combinaciones finalistas|
